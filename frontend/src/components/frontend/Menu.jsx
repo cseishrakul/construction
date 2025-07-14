@@ -12,6 +12,7 @@ const Menu = () => {
     { to: "/projects", label: "Projects" },
     { to: "/blogs", label: "Blogs" },
     { to: "/contact", label: "Contact Us" },
+    { to: "/admin/login", label: "Login" },
   ];
 
   const handleLinkClick = (link) => {
