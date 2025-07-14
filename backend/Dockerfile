@@ -19,11 +19,14 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory inside the container
 WORKDIR /var/www/html
 
-# Copy all project files into the container
-COPY . .
+# Copy composer files first for better caching
+COPY composer.json composer.lock ./
 
 # Install PHP dependencies without dev packages and optimize autoloader
 RUN composer install --optimize-autoloader --no-dev
+
+# Copy the rest of the application files
+COPY . .
 
 # Cache the Laravel config (optional but recommended)
 RUN php artisan config:cache
