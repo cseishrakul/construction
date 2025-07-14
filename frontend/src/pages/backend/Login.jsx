@@ -16,7 +16,7 @@ const Login = () => {
 
   const onSubmit = async (data) => {
     try {
-      const res = await fetch("http://localhost:8000/api/authenticate", {
+      const res = await fetch("https://construction-aqri.onrender.com/api/authenticate", {
         method: "POST",
         headers: {
           "Content-type": "application/json",
