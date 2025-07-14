@@ -20,20 +20,20 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy composer files for better caching
+# Copy composer files
 COPY composer.json composer.lock ./
 
-# Install PHP dependencies without dev packages
-RUN composer install --optimize-autoloader --no-dev
+# Install dependencies (skip scripts because .env is not available yet)
+RUN composer install --optimize-autoloader --no-dev --no-scripts
 
-# Copy the rest of the application files
+# Copy the rest of the application
 COPY . .
 
-# Set correct permissions for storage and cache folders
+# Set permissions
 RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Expose port Laravel will run on
+# Expose port
 EXPOSE 8080
 
-# Start Laravel server and cache config at runtime
-CMD php artisan config:cache && php artisan serve --host=0.0.0.0 --port=8080
+# At runtime, now that .env exists, run artisan scripts
+CMD php artisan config:clear && php artisan config:cache && php artisan serve --host=0.0.0.0 --port=8080
