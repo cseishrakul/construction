@@ -24,7 +24,7 @@ WORKDIR /var/www/html
 COPY composer.json composer.lock ./
 
 # Install dependencies (skip scripts because .env is not available yet)
-RUN composer install --optimize-autoloader --no-dev --no-scripts
+RUN composer install --optimize-autoloader --no-dev --no-scripts -vvv
 
 # Copy the rest of the application
 COPY . .
