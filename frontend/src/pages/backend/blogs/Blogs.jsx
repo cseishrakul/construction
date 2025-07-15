@@ -154,7 +154,7 @@ const Blogs = () => {
                 <img
                   src={
                     selectedBlog.image
-                      ? `http://localhost:8000/uploads/blogs/large/${selectedBlog.image}`
+                      ? `https://construction-xi-six.vercel.app/uploads/blogs/large/${selectedBlog.image}`
                       : "https://via.placeholder.com/400x200.png?text=No+Image"
                   }
                   alt={selectedBlog.title}
