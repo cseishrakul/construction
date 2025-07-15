@@ -19,7 +19,7 @@ export default function CreateTeam() {
     const payload = { ...data, imageId };
 
     try {
-      const res = await fetch("https://construction-aqri.onrender.com/api/teams", {
+      const res = await fetch(apiurl + "teams", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
