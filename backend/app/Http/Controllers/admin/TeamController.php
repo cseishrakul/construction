@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class TeamController extends Controller
 {
@@ -27,35 +28,58 @@ class TeamController extends Controller
         return response()->json(['status' => true, 'data' => $team]);
     }
 
+
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|email|unique:teams,email',
-            'phone' => 'required|string',
-            'role' => 'required|string',
-            'status' => 'required|boolean',
-            'imageId' => 'nullable|integer',
-        ]);
+        try {
+            Log::info('Team store request received', $request->all());
 
-        $team = new Team();
-        $team->name = $request->name;
-        $team->email = $request->email;
-        $team->phone = $request->phone;
-        $team->role = $request->role;
-        $team->status = $request->status;
-        $team->save();
+            $request->validate([
+                'name' => 'required|string',
+                'email' => 'required|email|unique:teams,email',
+                'phone' => 'required|string',
+                'role' => 'required|string',
+                'status' => 'required|boolean',
+                'imageId' => 'nullable|integer',
+            ]);
 
-        if ($request->imageId > 0) {
-            $imageName = $this->moveTempImageToTeamFolder($request->imageId, $team->id);
-            if ($imageName) {
-                $team->image = $imageName;
-                $team->save();
+            $team = new Team();
+            $team->name = $request->name;
+            $team->email = $request->email;
+            $team->phone = $request->phone;
+            $team->role = $request->role;
+            $team->status = $request->status;
+            $team->save();
+
+            if (!empty($request->imageId) && $request->imageId > 0) {
+                Log::info('Attempting to move image ID: ' . $request->imageId);
+
+                $imageName = $this->moveTempImageToTeamFolder($request->imageId, $team->id);
+
+                if ($imageName) {
+                    $team->image = $imageName;
+                    $team->save();
+                    Log::info("Image moved and saved: $imageName");
+                } else {
+                    Log::error("Image move failed for image ID: {$request->imageId}");
+                }
             }
-        }
 
-        return response()->json(['status' => true, 'message' => 'Team member created successfully!', 'data' => $team]);
+            return response()->json([
+                'status' => true,
+                'message' => 'Team member created successfully!',
+                'data' => $team
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Team store error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'status' => false,
+                'message' => 'Server error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
+
 
     public function update(Request $request, $id)
     {
