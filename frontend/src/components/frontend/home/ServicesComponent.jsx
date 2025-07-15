@@ -53,7 +53,7 @@ const ServicesComponent = () => {
                     <img
                       src={
                         service.image
-                          ? `http://localhost:8000/uploads/services/small/${service.image}`
+                          ? `https://construction-aqri.onrender.com/uploads/services/small/${service.image}`
                           : "https://via.placeholder.com/400x200.png?text=No+Image"
                       }
                       alt={service.title}

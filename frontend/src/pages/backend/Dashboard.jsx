@@ -13,13 +13,9 @@ const Dashboard = () => {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "" });
 
-  const apiurl = "http://localhost:8000/api/";
-
-  // Read userInfo from localStorage
+  const apiurl = "https://construction-aqri.onrender.com/api/";
   const userData = JSON.parse(localStorage.getItem("userInfo") || "{}");
   const token = userData.token || null;
-
-  // Fetch dashboard stats
   const fetchStats = async () => {
     try {
       const res = await fetch(apiurl + "dashboard-stats", {
@@ -39,8 +35,6 @@ const Dashboard = () => {
       toast.error(error.message);
     }
   };
-
-  // Fetch user profile
   const fetchProfile = async () => {
     try {
       const res = await fetch(apiurl + "profile", {
@@ -70,13 +64,9 @@ const Dashboard = () => {
     fetchStats();
     fetchProfile();
   }, [token]);
-
-  // Handle input changes in edit form
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
-
-  // Submit profile update
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {

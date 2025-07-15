@@ -94,7 +94,7 @@ const Blogs = () => {
                       <img
                         src={
                           blog.image
-                            ? `http://localhost:8000/uploads/blogs/small/${blog.image}`
+                            ? `https://construction-aqri.onrender.com/uploads/blogs/small/${blog.image}`
                             : "https://via.placeholder.com/100x60.png?text=No+Image"
                         }
                         alt={blog.title}

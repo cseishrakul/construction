@@ -98,7 +98,7 @@ const Projects = () => {
                         <img
                           src={
                             project.image
-                              ? `http://localhost:8000/uploads/projects/small/${project.image}`
+                              ? `https://construction-aqri.onrender.com/uploads/projects/small/${project.image}`
                               : "https://via.placeholder.com/100x60.png?text=No+Image"
                           }
                           alt={project.title}

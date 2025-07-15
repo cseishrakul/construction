@@ -56,7 +56,7 @@ const ServiceDetails = () => {
           <img
             src={
               service.image
-                ? `http://localhost:8000/uploads/services/large/${service.image}`
+                ? `https://construction-aqri.onrender.com/uploads/services/large/${service.image}`
                 : 'https://via.placeholder.com/600x300.png?text=No+Image'
             }
             alt={service.title}

@@ -7,7 +7,7 @@ const Team = () => {
   useEffect(() => {
     const fetchTeams = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/get-teams");
+        const res = await fetch("https://construction-aqri.onrender.com/api/get-teams");
         const data = await res.json();
         if (data.status) {
           setTeamMembers(data.data);
@@ -45,7 +45,7 @@ const Team = () => {
             <div className="col-md-3 mb-4" key={member.id}>
               <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 h-full">
                 <img
-                  src={`http://localhost:8000/uploads/teams/small/${member.image}`}
+                  src={`https://construction-aqri.onrender.com/uploads/teams/small/${member.image}`}
                   alt={member.name}
                   className="w-full h-52 object-cover"
                 />

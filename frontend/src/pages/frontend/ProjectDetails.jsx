@@ -53,7 +53,7 @@ const ProjectDetails = () => {
           <img
             src={
               project.image
-                ? `http://localhost:8000/uploads/projects/large/${project.image}`
+                ? `https://construction-aqri.onrender.com/uploads/projects/large/${project.image}`
                 : "https://via.placeholder.com/600x300.png?text=No+Image"
             }
             alt={project.title}

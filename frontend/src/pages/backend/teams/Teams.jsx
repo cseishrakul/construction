@@ -96,7 +96,7 @@ const Teams = () => {
                       <img
                         src={
                           member.image
-                            ? `http://localhost:8000/uploads/teams/small/${member.image}`
+                            ? `https://construction-aqri.onrender.com/uploads/teams/small/${member.image}`
                             : "https://via.placeholder.com/100x100.png?text=No+Image"
                         }
                         alt={member.name}
@@ -148,7 +148,7 @@ const Teams = () => {
                 <img
                   src={
                     selectedTeam.image
-                      ? `http://localhost:8000/uploads/teams/large/${selectedTeam.image}`
+                      ? `https://construction-aqri.onrender.com/uploads/teams/large/${selectedTeam.image}`
                       : "https://via.placeholder.com/300x200.png?text=No+Image"
                   }
                   alt={selectedTeam.name}
