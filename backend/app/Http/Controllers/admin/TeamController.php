@@ -46,7 +46,7 @@ class TeamController extends Controller
         $team->status = $request->status;
         $team->save();
 
-        if ($request->imageId > 0) {
+        if (!empty($request->imageId) && $request->imageId > 0) {
             $imageName = $this->moveTempImageToTeamFolder($request->imageId, $team->id);
             if ($imageName) {
                 $team->image = $imageName;
