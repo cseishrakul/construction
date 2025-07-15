@@ -10,6 +10,7 @@ use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class TeamController extends Controller
 {
@@ -31,55 +32,76 @@ class TeamController extends Controller
 
     public function store(Request $request)
     {
-        try {
-            Log::info('Team store request received', $request->all());
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string',
+            'email' => 'required|email|unique:teams,email',
+            'phone' => 'required|string',
+            'role' => 'required|string',
+            'status' => 'required|boolean',
+            'imageId' => 'nullable|integer',
+        ]);
 
-            $request->validate([
-                'name' => 'required|string',
-                'email' => 'required|email|unique:teams,email',
-                'phone' => 'required|string',
-                'role' => 'required|string',
-                'status' => 'required|boolean',
-                'imageId' => 'nullable|integer',
-            ]);
-
-            $team = new Team();
-            $team->name = $request->name;
-            $team->email = $request->email;
-            $team->phone = $request->phone;
-            $team->role = $request->role;
-            $team->status = $request->status;
-            $team->save();
-
-            if (!empty($request->imageId) && $request->imageId > 0) {
-                Log::info('Attempting to move image ID: ' . $request->imageId);
-
-                $imageName = $this->moveTempImageToTeamFolder($request->imageId, $team->id);
-
-                if ($imageName) {
-                    $team->image = $imageName;
-                    $team->save();
-                    Log::info("Image moved and saved: $imageName");
-                } else {
-                    Log::error("Image move failed for image ID: {$request->imageId}");
-                }
-            }
-
-            return response()->json([
-                'status' => true,
-                'message' => 'Team member created successfully!',
-                'data' => $team
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('Team store error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        if ($validator->fails()) {
             return response()->json([
                 'status' => false,
-                'message' => 'Server error',
-                'error' => $e->getMessage()
-            ], 500);
+                'errors' => $validator->errors()
+            ]);
         }
-    }
 
+        // ✅ Save basic data first
+        $team = new Team();
+        $team->name = $request->name;
+        $team->email = $request->email;
+        $team->phone = $request->phone;
+        $team->role = $request->role;
+        $team->status = $request->status;
+        $team->save(); // team->id is now available
+
+        // ✅ Move image to correct folders
+        if (!empty($request->imageId) && $request->imageId > 0) {
+            $tempImage = TempImage::find($request->imageId);
+
+            if ($tempImage) {
+                $extArray = explode('.', $tempImage->name);
+                $ext = last($extArray);
+                $fileName = strtotime('now') . '_' . $team->id . '.' . $ext;
+
+                $srcPath = public_path('uploads/temp/' . $tempImage->name);
+
+                // Ensure folders
+                $smallDest = public_path('uploads/teams/small/' . $fileName);
+                $largeDest = public_path('uploads/teams/large/' . $fileName);
+                if (!file_exists(dirname($smallDest))) mkdir(dirname($smallDest), 0755, true);
+                if (!file_exists(dirname($largeDest))) mkdir(dirname($largeDest), 0755, true);
+
+                $manager = new ImageManager(Driver::class);
+
+                // Save small (300x300)
+                $image = $manager->read($srcPath);
+                $image->coverDown(300, 300);
+                $image->save($smallDest);
+
+                // Save large (scale 1000)
+                $image = $manager->read($srcPath);
+                $image->scaleDown(1000);
+                $image->save($largeDest);
+
+                // ✅ Set image on team
+                $team->image = $fileName;
+                $team->save();
+
+                // Cleanup
+                $tempImage->delete();
+                File::delete($srcPath);
+            }
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Team member created successfully!',
+            'data' => $team
+        ]);
+    }
 
     public function update(Request $request, $id)
     {
