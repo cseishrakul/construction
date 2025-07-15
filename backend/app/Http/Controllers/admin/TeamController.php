@@ -29,7 +29,9 @@ class TeamController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        \Log::info('Incoming team create payload', $request->all());
+
+        $validated = $request->validate([
             'name' => 'required|string',
             'email' => 'required|email|unique:teams,email',
             'phone' => 'required|string',
@@ -38,24 +40,24 @@ class TeamController extends Controller
             'imageId' => 'nullable|integer',
         ]);
 
-        $team = new Team();
-        $team->name = $request->name;
-        $team->email = $request->email;
-        $team->phone = $request->phone;
-        $team->role = $request->role;
-        $team->status = $request->status;
-        $team->save();
+        try {
+            $team = Team::create($validated);
 
-        if (!empty($request->imageId) && $request->imageId > 0) {
-            $imageName = $this->moveTempImageToTeamFolder($request->imageId, $team->id);
-            if ($imageName) {
-                $team->image = $imageName;
-                $team->save();
+            if (!empty($request->imageId) && $request->imageId > 0) {
+                $imageName = $this->moveTempImageToTeamFolder($request->imageId, $team->id);
+                if ($imageName) {
+                    $team->image = $imageName;
+                    $team->save();
+                }
             }
-        }
 
-        return response()->json(['status' => true, 'message' => 'Team member created successfully!', 'data' => $team]);
+            return response()->json(['status' => true, 'message' => 'Team member created successfully!', 'data' => $team]);
+        } catch (\Exception $e) {
+            \Log::error("Team create failed: " . $e->getMessage());
+            return response()->json(['status' => false, 'message' => 'Server error'], 500);
+        }
     }
+
 
     public function update(Request $request, $id)
     {
