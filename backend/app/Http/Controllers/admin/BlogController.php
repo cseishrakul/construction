@@ -8,9 +8,7 @@ use App\Models\TempImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
-use Illuminate\Support\Facades\File;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class BlogController extends Controller
 {
@@ -43,41 +41,27 @@ class BlogController extends Controller
             ]);
         }
 
-        // ✅ First: Save blog without image to get ID
         $blog = new Blog();
         $blog->title = $request->title;
         $blog->slug = $request->slug;
         $blog->short_desc = $request->short_desc;
         $blog->content = $request->content;
         $blog->status = $request->status;
-        $blog->save(); // Now $blog->id is available
+        $blog->save();
 
-        // ✅ Now process image
         if ($request->imageId > 0) {
             $tempImage = TempImage::find($request->imageId);
 
             if ($tempImage) {
-                $extArray = explode('.', $tempImage->name);
-                $ext = last($extArray);
-                $fileName = strtotime('now') . $blog->id . '.' . $ext;
-
                 $srcPath = public_path('uploads/temp/' . $tempImage->name);
 
-                // Small
-                $smallDest = public_path('uploads/blogs/small/' . $fileName);
-                $manager = new ImageManager(Driver::class);
-                $image = $manager->read($srcPath);
-                $image->coverDown(500, 600);
-                $image->save($smallDest);
+                $uploadResult = Cloudinary::upload($srcPath, [
+                    'folder' => 'blogs',
+                    'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME)
+                ]);
 
-                // Large
-                $largeDest = public_path('uploads/blogs/large/' . $fileName);
-                $image = $manager->read($srcPath);
-                $image->scaleDown(1200);
-                $image->save($largeDest);
-
-                // ✅ Save blog image
-                $blog->image = $fileName;
+                $blog->image = $uploadResult->getSecurePath();
+                $blog->image_public_id = $uploadResult->getPublicId();
                 $blog->save();
             }
         }
@@ -88,7 +72,6 @@ class BlogController extends Controller
             'data' => $blog
         ]);
     }
-
 
     public function update($id, Request $request)
     {
@@ -122,35 +105,22 @@ class BlogController extends Controller
         $blog->status = $request->status;
 
         if ($request->imageId > 0) {
-            $oldImage = $blog->image;
             $tempImage = TempImage::find($request->imageId);
             if ($tempImage) {
-                $extArray = explode('.', $tempImage->name);
-                $ext = last($extArray);
-                $fileName = strtotime('now') . $blog->id . '.' . $ext;
+                // Delete old image
+                if ($blog->image_public_id) {
+                    Cloudinary::destroy($blog->image_public_id);
+                }
 
-                // Paths
                 $srcPath = public_path('uploads/temp/' . $tempImage->name);
 
-                // Small image
-                $smallDest = public_path('uploads/blogs/small/' . $fileName);
-                $manager = new ImageManager(Driver::class);
-                $image = $manager->read($srcPath);
-                $image->coverDown(500, 600);
-                $image->save($smallDest);
+                $uploadResult = Cloudinary::upload($srcPath, [
+                    'folder' => 'blogs',
+                    'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME)
+                ]);
 
-                // Large image
-                $largeDest = public_path('uploads/blogs/large/' . $fileName);
-                $image = $manager->read($srcPath);
-                $image->scaleDown(1200);
-                $image->save($largeDest);
-
-                $blog->image = $fileName;
-
-                if ($oldImage != '') {
-                    File::delete(public_path('uploads/blogs/large/' . $oldImage));
-                    File::delete(public_path('uploads/blogs/small/' . $oldImage));
-                }
+                $blog->image = $uploadResult->getSecurePath();
+                $blog->image_public_id = $uploadResult->getPublicId();
             }
         }
 
@@ -188,8 +158,9 @@ class BlogController extends Controller
             ]);
         }
 
-        File::delete(public_path('uploads/blogs/large/' . $blog->image));
-        File::delete(public_path('uploads/blogs/small/' . $blog->image));
+        if ($blog->image_public_id) {
+            Cloudinary::destroy($blog->image_public_id);
+        }
 
         $blog->delete();
 

@@ -7,10 +7,9 @@ use App\Models\Project as ModelsProject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
 use Illuminate\Support\Facades\File;
 use App\Models\TempImage;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProjectController extends Controller
 {
@@ -51,26 +50,15 @@ class ProjectController extends Controller
         if ($request->imageId > 0) {
             $tempImage = TempImage::find($request->imageId);
             if ($tempImage != null) {
-                $extArray = explode('.', $tempImage->name);
-                $ext = last($extArray);
-                $fileName = strtotime('now') . $project->id . '.' . $ext;
-
-                // Small
                 $srcPath = public_path('uploads/temp/' . $tempImage->name);
-                $destPath = public_path('uploads/projects/small/' . $fileName);
-                $manager = new ImageManager(Driver::class);
-                $image = $manager->read($srcPath);
-                $image->coverDown(500, 600);
-                $image->save($destPath);
 
-                // large
-                $destPath = public_path('uploads/projects/large/' . $fileName);
-                $manager = new ImageManager(Driver::class);
-                $image = $manager->read($srcPath);
-                $image->scaleDown(1200);
-                $image->save($destPath);
+                $uploadResult = Cloudinary::upload($srcPath, [
+                    'folder' => 'projects',
+                    'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME)
+                ]);
 
-                $project->image = $fileName;
+                $project->image = $uploadResult->getSecurePath();
+                $project->image_public_id = $uploadResult->getPublicId();
             }
         }
 
@@ -91,6 +79,7 @@ class ProjectController extends Controller
                 'message' => 'Project not found'
             ]);
         }
+
         $request->merge(['slug' => Str::slug($request->slug)]);
         $validator = Validator::make($request->all(), [
             'title' => 'required',
@@ -113,33 +102,21 @@ class ProjectController extends Controller
         $project->location = $request->location;
 
         if ($request->imageId > 0) {
-            $oldImage = $project->image;
             $tempImage = TempImage::find($request->imageId);
             if ($tempImage != null) {
-                $extArray = explode('.', $tempImage->name);
-                $ext = last($extArray);
-                $fileName = strtotime('now') . $project->id . '.' . $ext;
-
-                // Small
-                $srcPath = public_path('uploads/temp/' . $tempImage->name);
-                $destPath = public_path('uploads/projects/small/' . $fileName);
-                $manager = new ImageManager(Driver::class);
-                $image = $manager->read($srcPath);
-                $image->coverDown(500, 600);
-                $image->save($destPath);
-
-                // large
-                $destPath = public_path('uploads/projects/large/' . $fileName);
-                $manager = new ImageManager(Driver::class);
-                $image = $manager->read($srcPath);
-                $image->scaleDown(1200);
-                $image->save($destPath);
-
-                $project->image = $fileName;
-                if ($oldImage != '') {
-                    File::delete(public_path('uploads/projects/large/' . $oldImage));
-                    File::delete(public_path('uploads/projects/small/' . $oldImage));
+                if ($project->image_public_id) {
+                    Cloudinary::destroy($project->image_public_id);
                 }
+
+                $srcPath = public_path('uploads/temp/' . $tempImage->name);
+
+                $uploadResult = Cloudinary::upload($srcPath, [
+                    'folder' => 'projects',
+                    'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME)
+                ]);
+
+                $project->image = $uploadResult->getSecurePath();
+                $project->image_public_id = $uploadResult->getPublicId();
             }
         }
 
@@ -172,15 +149,17 @@ class ProjectController extends Controller
         $project = ModelsProject::find($id);
         if ($project == null) {
             return response()->json([
-                'status' => true,
+                'status' => false,
                 'message' => 'Project not found!'
             ]);
         }
 
-        File::delete(public_path('uploads/projects/large/' . $project->image));
-        File::delete(public_path('uploads/projects/small/' . $project->image));
+        if ($project->image_public_id) {
+            Cloudinary::destroy($project->image_public_id);
+        }
 
         $project->delete();
+
         return response()->json([
             'status' => true,
             'message' => 'Project deleted Successfully!'

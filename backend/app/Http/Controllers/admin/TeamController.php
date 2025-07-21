@@ -11,6 +11,7 @@ use Intervention\Image\Drivers\Gd\Driver;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class TeamController extends Controller
 {
@@ -28,6 +29,7 @@ class TeamController extends Controller
         }
         return response()->json(['status' => true, 'data' => $team]);
     }
+
 
 
     public function store(Request $request)
@@ -48,7 +50,6 @@ class TeamController extends Controller
             ]);
         }
 
-        // ✅ Save basic data first
         $team = new Team();
         $team->name = $request->name;
         $team->email = $request->email;
@@ -56,41 +57,26 @@ class TeamController extends Controller
         $team->role = $request->role;
         $team->status = $request->status;
         $team->save();
+
         if (!empty($request->imageId) && $request->imageId > 0) {
             $tempImage = TempImage::find($request->imageId);
 
             if ($tempImage) {
-                $extArray = explode('.', $tempImage->name);
-                $ext = last($extArray);
-                $fileName = strtotime('now') . '_' . $team->id . '.' . $ext;
+                $path = public_path('uploads/temp/' . $tempImage->name);
 
-                $srcPath = public_path('uploads/temp/' . $tempImage->name);
+                $cloudinaryUpload = Cloudinary::upload($path, [
+                    'folder' => 'teams',
+                    'transformation' => [
+                        ['width' => 1000, 'crop' => 'limit']
+                    ]
+                ]);
 
-                // Ensure folders
-                $smallDest = public_path('uploads/teams/small/' . $fileName);
-                $largeDest = public_path('uploads/teams/large/' . $fileName);
-                if (!file_exists(dirname($smallDest))) mkdir(dirname($smallDest), 0755, true);
-                if (!file_exists(dirname($largeDest))) mkdir(dirname($largeDest), 0755, true);
-
-                $manager = new ImageManager(Driver::class);
-
-                // Save small (300x300)
-                $image = $manager->read($srcPath);
-                $image->coverDown(300, 300);
-                $image->save($smallDest);
-
-                // Save large (scale 1000)
-                $image = $manager->read($srcPath);
-                $image->scaleDown(1000);
-                $image->save($largeDest);
-
-                // ✅ Set image on team
-                $team->image = $fileName;
+                $team->image = $cloudinaryUpload->getSecurePath();
+                $team->image_public_id = $cloudinaryUpload->getPublicId();
                 $team->save();
 
-                // Cleanup
                 $tempImage->delete();
-                File::delete($srcPath);
+                File::delete($path);
             }
         }
 
@@ -101,82 +87,88 @@ class TeamController extends Controller
         ]);
     }
 
+
     public function update(Request $request, $id)
-{
-    try {
-        \Log::info("Update request for team ID: $id", $request->all());
+    {
+        try {
+            \Log::info("Update request for team ID: $id", $request->all());
 
-        $team = Team::find($id);
-        if (!$team) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Team member not found'
-            ], 404);
-        }
-
-        $validator = \Validator::make($request->all(), [
-            'name' => 'required|string',
-            'email' => 'required|email|unique:teams,email,' . $id,
-            'phone' => 'required|string',
-            'role' => 'required|string',
-            'status' => 'required|boolean',
-            'imageId' => 'nullable|integer',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'errors' => $validator->errors()
-            ]);
-        }
-
-        $team->name = $request->name;
-        $team->email = $request->email;
-        $team->phone = $request->phone;
-        $team->role = $request->role;
-        $team->status = $request->status;
-
-        // ✅ If new image uploaded
-        if (!empty($request->imageId) && $request->imageId > 0) {
-            \Log::info("New image upload detected for team ID: $id");
-
-            $oldImage = $team->image;
-            $imageName = $this->moveTempImageToTeamFolder($request->imageId, $team->id);
-
-            if ($imageName) {
-                $team->image = $imageName;
-
-                // ✅ Delete old images
-                if ($oldImage) {
-                    \File::delete(public_path('uploads/teams/small/' . $oldImage));
-                    \File::delete(public_path('uploads/teams/large/' . $oldImage));
-                }
-
-                \Log::info("New image saved: $imageName");
-            } else {
-                \Log::error("Failed to move new image with imageId: {$request->imageId}");
+            $team = Team::find($id);
+            if (!$team) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Team member not found'
+                ], 404);
             }
+
+            $validator = \Validator::make($request->all(), [
+                'name' => 'required|string',
+                'email' => 'required|email|unique:teams,email,' . $id,
+                'phone' => 'required|string',
+                'role' => 'required|string',
+                'status' => 'required|boolean',
+                'imageId' => 'nullable|integer',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false,
+                    'errors' => $validator->errors()
+                ]);
+            }
+
+            $team->name = $request->name;
+            $team->email = $request->email;
+            $team->phone = $request->phone;
+            $team->role = $request->role;
+            $team->status = $request->status;
+
+            if (!empty($request->imageId) && $request->imageId > 0) {
+                $tempImage = TempImage::find($request->imageId);
+
+                if ($tempImage) {
+                    $path = public_path('uploads/temp/' . $tempImage->name);
+
+                    // Remove old from Cloudinary
+                    if ($team->image_public_id) {
+                        Cloudinary::destroy($team->image_public_id);
+                    }
+
+                    $cloudinaryUpload = Cloudinary::upload($path, [
+                        'folder' => 'teams',
+                        'transformation' => [
+                            ['width' => 1000, 'crop' => 'limit']
+                        ]
+                    ]);
+
+                    $team->image = $cloudinaryUpload->getSecurePath();
+                    $team->image_public_id = $cloudinaryUpload->getPublicId();
+
+                    $tempImage->delete();
+                    File::delete($path);
+                }
+            }
+
+
+            $team->save();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Team member updated successfully!',
+                'data' => $team
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error("Update error for team ID: $id - " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Server error',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $team->save();
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Team member updated successfully!',
-            'data' => $team
-        ]);
-    } catch (\Throwable $e) {
-        \Log::error("Update error for team ID: $id - " . $e->getMessage(), [
-            'trace' => $e->getTraceAsString()
-        ]);
-
-        return response()->json([
-            'status' => false,
-            'message' => 'Server error',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
 
 
     public function destroy($id)

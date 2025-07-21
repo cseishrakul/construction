@@ -8,9 +8,8 @@ use App\Models\TempImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
 use Illuminate\Support\Facades\File;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ServiceController extends Controller
 {
@@ -26,6 +25,7 @@ class ServiceController extends Controller
     public function store(Request $request)
     {
         $request->merge(['slug' => Str::slug($request->slug)]);
+
         $validator = Validator::make($request->all(), [
             'title' => 'required',
             'slug' => 'required|unique:services,slug'
@@ -49,32 +49,27 @@ class ServiceController extends Controller
         $model->budget = $request->budget;
         $model->timeline = $request->timeline;
 
-
+        // ✅ Upload image to Cloudinary
         if ($request->imageId > 0) {
             $tempImage = TempImage::find($request->imageId);
             if ($tempImage != null) {
-                $extArray = explode('.', $tempImage->name);
-                $ext = last($extArray);
-                $fileName = strtotime('now') . $model->id . '.' . $ext;
-
-                // Small
                 $srcPath = public_path('uploads/temp/' . $tempImage->name);
-                $destPath = public_path('uploads/services/small/' . $fileName);
-                $manager = new ImageManager(Driver::class);
-                $image = $manager->read($srcPath);
-                $image->coverDown(500, 600);
-                $image->save($destPath);
+                $uploadedFile = Cloudinary::upload($srcPath, [
+                    'folder' => 'services',
+                    'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME),
+                    'overwrite' => true
+                ]);
 
-                // large
-                $destPath = public_path('uploads/services/large/' . $fileName);
-                $manager = new ImageManager(Driver::class);
-                $image = $manager->read($srcPath);
-                $image->scaleDown(1200);
-                $image->save($destPath);
+                // Save secure URL + public ID for deletion
+                $model->image = $uploadedFile->getSecurePath();
+                $model->image_public_id = $uploadedFile->getPublicId();
 
-                $model->image = $fileName;
+                // Optional cleanup
+                @unlink($srcPath);
+                $tempImage->delete();
             }
         }
+
         $model->save();
 
         return response()->json([
@@ -82,12 +77,13 @@ class ServiceController extends Controller
             'message' => 'Service added successfully!'
         ]);
     }
+
     public function show($id)
     {
         $service = Service::find($id);
         if ($service == null) {
             return response()->json([
-                'status' => true,
+                'status' => false,
                 'message' => 'Service not found!'
             ]);
         }
@@ -96,10 +92,7 @@ class ServiceController extends Controller
             'data' => $service,
         ]);
     }
-    public function edit(Service $service)
-    {
-        //
-    }
+
     public function update(Request $request, $id)
     {
         $service = Service::find($id);
@@ -109,9 +102,10 @@ class ServiceController extends Controller
                 'errors' => 'Service not found'
             ]);
         }
+
         $validator = Validator::make($request->all(), [
             'title' => 'required',
-            'slug' => 'required|unique:services,slug,' . $id . ',id'
+            'slug' => 'required|unique:services,slug,' . $id
         ]);
 
         if ($validator->fails()) {
@@ -131,35 +125,29 @@ class ServiceController extends Controller
         $service->budget = $request->budget;
         $service->timeline = $request->timeline;
 
-
+        // ✅ Update image
         if ($request->imageId > 0) {
-            $oldImage = $service->image;
             $tempImage = TempImage::find($request->imageId);
             if ($tempImage != null) {
-                $extArray = explode('.', $tempImage->name);
-                $ext = last($extArray);
-                $fileName = strtotime('now') . $service->id . '.' . $ext;
-
-                // Small
                 $srcPath = public_path('uploads/temp/' . $tempImage->name);
-                $destPath = public_path('uploads/services/small/' . $fileName);
-                $manager = new ImageManager(Driver::class);
-                $image = $manager->read($srcPath);
-                $image->coverDown(500, 600);
-                $image->save($destPath);
 
-                // large
-                $destPath = public_path('uploads/services/large/' . $fileName);
-                $manager = new ImageManager(Driver::class);
-                $image = $manager->read($srcPath);
-                $image->scaleDown(1200);
-                $image->save($destPath);
-
-                $service->image = $fileName;
-                if ($oldImage != '') {
-                    File::delete(public_path('uploads/services/large/' . $oldImage));
-                    File::delete(public_path('uploads/services/small/' . $oldImage));
+                // ❌ Delete old Cloudinary image if exists
+                if ($service->image_public_id) {
+                    Cloudinary::destroy($service->image_public_id);
                 }
+
+                $uploadedFile = Cloudinary::upload($srcPath, [
+                    'folder' => 'services',
+                    'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME),
+                    'overwrite' => true
+                ]);
+
+                $service->image = $uploadedFile->getSecurePath();
+                $service->image_public_id = $uploadedFile->getPublicId();
+
+                // Clean temp
+                @unlink($srcPath);
+                $tempImage->delete();
             }
         }
 
@@ -167,25 +155,30 @@ class ServiceController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => 'Service Updated successfully!'
+            'message' => 'Service updated successfully!'
         ]);
     }
+
     public function destroy($id)
     {
         $service = Service::find($id);
         if ($service == null) {
             return response()->json([
-                'status' => true,
+                'status' => false,
                 'message' => 'Service not found!'
             ]);
         }
 
-        File::delete(public_path('uploads/services/large/' . $service->image));
-        File::delete(public_path('uploads/services/small/' . $service->image));
+        // ❌ Delete from Cloudinary
+        if ($service->image_public_id) {
+            Cloudinary::destroy($service->image_public_id);
+        }
+
         $service->delete();
+
         return response()->json([
             'status' => true,
-            'message' => 'Service deleted Successfully!'
+            'message' => 'Service deleted successfully!'
         ]);
     }
 }
