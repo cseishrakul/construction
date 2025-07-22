@@ -89,67 +89,65 @@ class ServiceController extends Controller
 
     public function update(Request $request, $id)
     {
-        $service = Service::find($id);
-        if ($service == null) {
-            return response()->json([
-                'status' => false,
-                'errors' => 'Service not found'
+        try {
+            $service = Service::find($id);
+            if (!$service) {
+                return response()->json([
+                    'status' => false,
+                    'error' => 'Service not found'
+                ], 404);
+            }
+
+            $request->merge(['slug' => Str::slug($request->slug ?? '')]);
+
+            $validator = Validator::make($request->all(), [
+                'title' => 'required',
+                'slug' => 'required|unique:services,slug,' . $id
             ]);
-        }
 
-        $validator = Validator::make($request->all(), [
-            'title' => 'required',
-            'slug' => 'required|unique:services,slug,' . $id
-        ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false,
+                    'errors' => $validator->errors()
+                ]);
+            }
 
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'errors' => $validator->errors()
-            ]);
-        }
+            $service->title = $request->title;
+            $service->short_desc = $request->short_desc;
+            $service->slug = Str::slug($request->slug ?? '');
+            $service->content = $request->content;
+            $service->status = $request->status;
+            $service->price = $request->price;
+            $service->details = $request->details;
+            $service->budget = $request->budget;
+            $service->timeline = $request->timeline;
 
-        $service->title = $request->title;
-        $service->short_desc = $request->short_desc;
-        $service->slug = Str::slug($request->slug);
-        $service->content = $request->content;
-        $service->status = $request->status;
-        $service->price = $request->price;
-        $service->details = $request->details;
-        $service->budget = $request->budget;
-        $service->timeline = $request->timeline;
-
-        // ✅ Update image
-        if ($request->imageId > 0) {
-            $tempImage = TempImage::find($request->imageId);
-            if ($tempImage != null) {
-                $srcPath = public_path('uploads/temp/' . $tempImage->name);
+            // ✅ If new image data is passed from frontend
+            if ($request->has('image') && $request->has('image_public_id')) {
+                // Delete old image from Cloudinary
                 if ($service->image_public_id) {
                     Cloudinary::destroy($service->image_public_id);
                 }
 
-                $uploadedFile = Cloudinary::upload($srcPath, [
-                    'folder' => 'services',
-                    'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME),
-                    'overwrite' => true
-                ]);
-
-                $service->image = $uploadedFile->getSecurePath();
-                $service->image_public_id = $uploadedFile->getPublicId();
-
-                // Clean temp
-                @unlink($srcPath);
-                $tempImage->delete();
+                $service->image = $request->image;
+                $service->image_public_id = $request->image_public_id;
             }
+
+            $service->save();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Service updated successfully!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
         }
-
-        $service->save();
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Service updated successfully!'
-        ]);
     }
+
 
     public function destroy($id)
     {

@@ -1,281 +1,232 @@
-import React, { useState, useRef, useMemo } from "react";
-import JoditEditor from "jodit-react";
+import React, { useEffect, useState, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { apiurl, token } from "../../../components/frontend/Http";
 import Sidebar from "../../../components/backend/dashboard/Sidebar";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { apiurl, fileurl, token } from "../../../components/frontend/Http";
 import { toast } from "react-toastify";
+import JoditEditor from "jodit-react";
 
-const EditService = ({ placeholder }) => {
+const EditService = () => {
   const editor = useRef(null);
-  const [content, setContent] = useState("");
-  const [service, setService] = useState("");
-  const [isDisable, setIsDisable] = useState(false);
-  const [imageId, setImageId] = useState(null);
-  const params = useParams();
-
-  const config = useMemo(
-    () => ({
-      readonly: false,
-      placeholder: placeholder || "",
-    }),
-    [placeholder]
-  );
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm({
-    defaultValues: async () => {
-      const res = await fetch(apiurl + "services/" + params.id, {
-        method: "GET",
-        headers: {
-          "Content-type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-      });
-      const result = await res.json();
-      setContent(result.data.content);
-      setService(result.data);
-      return {
-        title: result.data.title,
-        slug: result.data.slug,
-        short_desc: result.data.short_desc,
-        status: result.data.status,
-        price: result.data.price,
-        details: result.data.details,
-        budget: result.data.budget,
-        timeline: result.data.timeline,
-      };
-    },
+  const [formData, setFormData] = useState({
+    title: "",
+    slug: "",
+    short_desc: "",
+    content: "",
+    status: 1,
+    price: "",
+    details: "",
+    budget: "",
+    timeline: "",
   });
+  const [imageData, setImageData] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
+  const { id } = useParams();
   const navigate = useNavigate();
 
-  const onSubmit = async (data) => {
-    const newData = {
-      ...data,
-      content: content,
-      imageId: imageId,
+  useEffect(() => {
+    const fetchService = async () => {
+      try {
+        const res = await fetch(`${apiurl}services/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token()}`,
+          },
+        });
+        const result = await res.json();
+        if (result.status) {
+          setFormData(result.data);
+          if (result.data.image) {
+            setImageData({
+              url: result.data.image,
+              public_id: result.data.image_public_id,
+            });
+          }
+        } else {
+          toast.error("Failed to load service");
+        }
+      } catch (err) {
+        toast.error("An error occurred while fetching service data");
+      }
     };
-    const res = await fetch(apiurl + "services/" + params.id, {
-      method: "PUT",
-      headers: {
-        "Content-type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${token()}`,
-      },
-      body: JSON.stringify(newData),
-    });
-    const result = await res.json();
-    if (result.status === true) {
-      toast.success(result.message);
-      navigate("/admin/services");
-    } else {
-      toast.error(result.message);
+    fetchService();
+  }, [id]);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+    uploadData.append("upload_preset", "react_unsigned");
+    setUploading(true);
+
+    try {
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dwelnewv8/image/upload",
+        {
+          method: "POST",
+          body: uploadData,
+        }
+      );
+
+      const data = await res.json();
+      if (data.secure_url) {
+        setImageData({ url: data.secure_url, public_id: data.public_id });
+        toast.success("Image uploaded!");
+      } else {
+        throw new Error("Image upload failed");
+      }
+    } catch (err) {
+      toast.error("Failed to upload image");
+    } finally {
+      setUploading(false);
     }
   };
 
-  const handleFile = async (e) => {
-    const formData = new FormData();
-    const file = e.target.files[0];
-    formData.append("image", file);
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    const submitData = new FormData();
+    Object.keys(formData).forEach((key) => {
+      submitData.append(key, formData[key]);
+    });
+    if (imageData?.url) submitData.append("image", imageData.url);
+    if (imageData?.public_id)
+      submitData.append("image_public_id", imageData.public_id);
 
     try {
-      const res = await fetch(apiurl + "temp-images", {
+      const response = await fetch(`${apiurl}services/${id}`, {
         method: "POST",
         headers: {
-          Accept: "application/json",
           Authorization: `Bearer ${token()}`,
         },
-        body: formData,
+        body: submitData,
       });
-
-      const result = await res.json();
-
-      if (!result.status) {
-        toast.error(result.errors?.image?.[0] || "Upload failed.");
+      const result = await response.json();
+      if (result.status) {
+        toast.success("Service updated successfully!");
+        navigate("/admin/services");
       } else {
-        setImageId(result.data.id);
+        toast.error("Validation error");
       }
-    } catch (error) {
-      toast.error("Image upload failed. Please try again.");
-      console.error("Upload error:", error);
+    } catch (err) {
+      toast.error("Something went wrong");
     }
   };
 
   return (
-    <main className="p-5">
-      <div className="flex gap-6">
-        <div className="w-64">
-          <Sidebar />
-        </div>
-        <div className="flex-grow bg-white shadow rounded-lg p-6 min-h-[450px]">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-2xl font-semibold text-gray-800">Services</h4>
-            <Link to="/admin/services">
-              <button className="bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-lg text-white transition duration-200">
-                Back
-              </button>
-            </Link>
-          </div>
-          <hr className="mb-4 border-gray-300" />
-          <form action="" onSubmit={handleSubmit(onSubmit)}>
-            <div className="row">
-              <div className="col-md-6">
-                <div className="mb-3">
-                  <label>Name</label>
-                  <input
-                    {...register("title", { required: "This title field is required" })}
-                    type="text"
-                    className={`form-control ${errors.title && "is-invalid"}`}
-                  />
-                  {errors.title && <p className="invalid-feedback">{errors.title?.message}</p>}
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="mb-3">
-                  <label>Slug</label>
-                  <input
-                    {...register("slug", { required: "This slug field is required" })}
-                    type="text"
-                    className={`form-control ${errors.slug && "is-invalid"}`}
-                  />
-                  {errors.slug && <p className="invalid-feedback">{errors.slug?.message}</p>}
-                </div>
-              </div>
-            </div>
+    <div className="">
+      <Sidebar />
+      <form onSubmit={onSubmit} className="max-w-xl mx-auto space-y-4">
+        <label>Title</label>
+        <input
+          name="title"
+          value={formData.title}
+          onChange={handleChange}
+          placeholder="Title"
+          className="border p-2 w-full"
+        />
 
-            <div className="row">
-              <div className="col-md-6">
-                <div className="mb-3">
-                  <label>Price</label>
-                  <input
-                    {...register("price")}
-                    type="number"
-                    className="form-control"
-                  />
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="mb-3">
-                  <label>Budget</label>
-                  <input
-                    {...register("budget")}
-                    type="text"
-                    className="form-control"
-                  />
-                </div>
-              </div>
-            </div>
+        <label>Slug</label>
+        <input
+          name="slug"
+          value={formData.slug}
+          onChange={handleChange}
+          placeholder="Slug"
+          className="border p-2 w-full"
+        />
 
-            <div className="row">
-              <div className="col-md-12">
-                <div className="mb-3">
-                  <label>Timeline</label>
-                  <input
-                    {...register("timeline")}
-                    type="text"
-                    className="form-control"
-                  />
-                </div>
-              </div>
-            </div>
+        <label>Short Description</label>
+        <input
+          name="short_desc"
+          value={formData.short_desc}
+          onChange={handleChange}
+          placeholder="Short Description"
+          className="border p-2 w-full"
+        />
 
-            <div className="row">
-              <div className="col-md-12">
-                <div className="mb-3">
-                  <label>Short Description</label>
-                  <textarea
-                    {...register("short_desc", { required: "This Description field is required" })}
-                    className={`form-control ${errors.short_desc ? "is-invalid" : ""}`}
-                    rows={4}
-                  />
-                  {errors.short_desc && <p className="invalid-feedback">{errors.short_desc?.message}</p>}
-                </div>
-              </div>
-            </div>
+        <label>Content</label>
+        <JoditEditor
+          ref={editor}
+          value={formData.content}
+          tabIndex={1}
+          onBlur={(newContent) => setFormData({ ...formData, content: newContent })}
+        />
 
-            <div className="row">
-              <div className="col-md-12">
-                <div className="mb-3">
-                  <label>Details</label>
-                  <textarea
-                    {...register("details")}
-                    className="form-control"
-                    rows={4}
-                  />
-                </div>
-              </div>
-            </div>
+        <label>Price</label>
+        <input
+          name="price"
+          value={formData.price}
+          onChange={handleChange}
+          placeholder="Price"
+          className="border p-2 w-full"
+        />
 
-            <div className="row">
-              <div className="col-md-12">
-                <div className="mb-3">
-                  <label>Content</label>
-                  <JoditEditor
-                    ref={editor}
-                    value={content}
-                    config={config}
-                    tabIndex={1}
-                    onBlur={(newContent) => setContent(newContent)}
-                    onChange={() => {}}
-                  />
-                </div>
-              </div>
-            </div>
+        <label>Details</label>
+        <input
+          name="details"
+          value={formData.details}
+          onChange={handleChange}
+          placeholder="Details"
+          className="border p-2 w-full"
+        />
 
-            <div className="row">
-              <div className="col-md-6">
-                <div className="mb-3">
-                  <label>Image</label>
-                  <input
-                    onChange={handleFile}
-                    type="file"
-                    className="form-control"
-                  />
-                  {service.image && (
-                    <img
-                      src={fileurl + 'uploads/services/small/' + service.image}
-                      alt=""
-                      className="my-2 w-32"
-                    />
-                  )}
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="mb-3">
-                  <label>Status</label>
-                  <select
-                    {...register("status", { required: "Status is required" })}
-                    className={`form-control ${errors.status ? "is-invalid" : ""}`}
-                  >
-                    <option value="">Select Status</option>
-                    <option value="1">Active</option>
-                    <option value="0">Block</option>
-                  </select>
-                  {errors.status && <p className="invalid-feedback">{errors.status.message}</p>}
-                </div>
-              </div>
-            </div>
+        <label>Budget</label>
+        <input
+          name="budget"
+          value={formData.budget}
+          onChange={handleChange}
+          placeholder="Budget"
+          className="border p-2 w-full"
+        />
 
-            <div className="row">
-              <div className="col-12">
-                <button
-                  className="w-full border p-2 border-purple-400 rounded-lg font-semibold hover:bg-purple-400 hover:text-white"
-                  disabled={isDisable}
-                >
-                  Update
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-    </main>
+        <label>Timeline</label>
+        <input
+          name="timeline"
+          value={formData.timeline}
+          onChange={handleChange}
+          placeholder="Timeline"
+          className="border p-2 w-full"
+        />
+
+        <label>Upload Image</label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="border p-2"
+        />
+        {uploading && <p className="text-sm text-blue-500">Uploading...</p>}
+        {imageData?.url && (
+          <img
+            src={imageData.url}
+            alt="Uploaded"
+            className="w-40 h-40 object-cover border"
+          />
+        )}
+
+        <label>Status</label>
+        <select
+          name="status"
+          value={formData.status}
+          onChange={handleChange}
+          className="border p-2 w-full"
+        >
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
+        </select>
+
+        <button
+          type="submit"
+          className="bg-blue-600 text-white py-2 px-4 rounded"
+        >
+          Update
+        </button>
+      </form>
+    </div>
   );
 };
 

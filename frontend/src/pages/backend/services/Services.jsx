@@ -154,11 +154,7 @@ const Services = () => {
               {selectedService.title}
             </h2>
             <img
-              src={
-                selectedService.image
-                  ? `https://construction-aqri.onrender.com/uploads/services/large/${selectedService.image}`
-                  : "https://via.placeholder.com/400x200.png?text=No+Image"
-              }
+              src={selectedService.image}
               alt={selectedService.title}
               className="w-full h-48 object-contain rounded mb-4"
             />

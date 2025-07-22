@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { token } from "../../../components/frontend/Http";
+import Sidebar from "../../../components/backend/dashboard/Sidebar";
 
 const CreateServices = () => {
   const [formData, setFormData] = useState({
@@ -32,7 +33,7 @@ const CreateServices = () => {
 
     const uploadData = new FormData();
     uploadData.append("file", file);
-    uploadData.append("upload_preset", "react_unsigned"); // 🔁 Replace
+    uploadData.append("upload_preset", "react_unsigned");
     setUploading(true);
 
     try {
@@ -67,15 +68,12 @@ const CreateServices = () => {
     e.preventDefault();
 
     const submitData = new FormData();
-
     Object.keys(formData).forEach((key) => {
       submitData.append(key, formData[key]);
     });
 
-    // Append image fields
     if (imageData?.url) submitData.append("image", imageData.url);
-    if (imageData?.public_id)
-      submitData.append("image_public_id", imageData.public_id);
+    if (imageData?.public_id) submitData.append("image_public_id", imageData.public_id);
 
     try {
       const response = await axios.post(
@@ -84,7 +82,7 @@ const CreateServices = () => {
         {
           headers: {
             Authorization: `Bearer ${token()}`,
-            "Content-Type": "multipart/form-data", // Needed if you're sending FormData
+            "Content-Type": "multipart/form-data",
           },
         }
       );
@@ -114,89 +112,81 @@ const CreateServices = () => {
   };
 
   return (
-    <form onSubmit={onSubmit} className="max-w-xl mx-auto space-y-4">
-      <input
-        name="title"
-        value={formData.title}
-        onChange={handleChange}
-        placeholder="Title"
-        className="border p-2 w-full"
-      />
-      <input
-        name="slug"
-        value={formData.slug}
-        onChange={handleChange}
-        placeholder="Slug"
-        className="border p-2 w-full"
-      />
-      <input
-        name="short_desc"
-        value={formData.short_desc}
-        onChange={handleChange}
-        placeholder="Short Description"
-        className="border p-2 w-full"
-      />
-      <textarea
-        name="content"
-        value={formData.content}
-        onChange={handleChange}
-        placeholder="Content"
-        className="border p-2 w-full"
-      />
-      <input
-        name="price"
-        value={formData.price}
-        onChange={handleChange}
-        placeholder="Price"
-        className="border p-2 w-full"
-      />
-      <input
-        name="details"
-        value={formData.details}
-        onChange={handleChange}
-        placeholder="Details"
-        className="border p-2 w-full"
-      />
-      <input
-        name="budget"
-        value={formData.budget}
-        onChange={handleChange}
-        placeholder="Budget"
-        className="border p-2 w-full"
-      />
-      <input
-        name="timeline"
-        value={formData.timeline}
-        onChange={handleChange}
-        placeholder="Timeline"
-        className="border p-2 w-full"
-      />
+    <div className="min-h-screen flex bg-gray-100">
+      <Sidebar />
+      <div className="flex-grow p-8">
+        <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow">
+          <h2 className="text-2xl font-bold mb-6">Create New Service</h2>
 
-      <div className="space-y-2">
-        <label className="block">Upload Image:</label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
-          className="border p-2"
-        />
-        {uploading && <p className="text-sm text-blue-500">Uploading...</p>}
-        {imageData?.url && (
-          <img
-            src={imageData.url}
-            alt="Uploaded"
-            className="w-40 h-40 object-cover border"
-          />
-        )}
+          <form onSubmit={onSubmit} className="space-y-4">
+            {[
+              ["title", "Title"],
+              ["slug", "Slug"],
+              ["short_desc", "Short Description"],
+              ["price", "Price"],
+              ["details", "Details"],
+              ["budget", "Budget"],
+              ["timeline", "Timeline"],
+            ].map(([key, label]) => (
+              <div key={key}>
+                <label htmlFor={key} className="block text-sm font-medium text-gray-700">
+                  {label}
+                </label>
+                <input
+                  type="text"
+                  name={key}
+                  value={formData[key]}
+                  onChange={handleChange}
+                  placeholder={label}
+                  className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring focus:border-blue-500"
+                />
+              </div>
+            ))}
+
+            <div>
+              <label htmlFor="content" className="block text-sm font-medium text-gray-700">
+                Content
+              </label>
+              <textarea
+                name="content"
+                value={formData.content}
+                onChange={handleChange}
+                placeholder="Content"
+                rows={4}
+                className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Upload Image
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-blue-600 file:text-white file:rounded hover:file:bg-blue-700"
+              />
+              {uploading && <p className="text-sm text-blue-500 mt-1">Uploading...</p>}
+              {imageData?.url && (
+                <img
+                  src={imageData.url}
+                  alt="Uploaded"
+                  className="w-40 h-40 mt-2 object-cover rounded border"
+                />
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition duration-200"
+            >
+              Submit Service
+            </button>
+          </form>
+        </div>
       </div>
-
-      <button
-        type="submit"
-        className="bg-blue-600 text-white py-2 px-4 rounded"
-      >
-        Submit
-      </button>
-    </form>
+    </div>
   );
 };
 
