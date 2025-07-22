@@ -90,36 +90,37 @@ class ServiceController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $service = Service::find($id);
-            if (!$service) {
+            $request->merge(['slug' => Str::slug($request->slug ?? '')]);
+
+            $validator = Validator::make($request->all(), [
+                'title' => 'required',
+                'slug' => 'required|unique:services,slug,' . $id, // Allow current slug
+            ]);
+
+            if ($validator->fails()) {
                 return response()->json([
                     'status' => false,
-                    'error' => 'Service not found'
-                ], 404);
+                    'errors' => $validator->errors()
+                ]);
             }
 
-            // Skip validation here!
-
-            $service->title = $request->title;
-            $service->short_desc = $request->short_desc;
-            $service->slug = Str::slug($request->slug ?? '');
-            $service->content = $request->content;
-            $service->status = $request->status;
-            $service->price = $request->price;
-            $service->details = $request->details;
-            $service->budget = $request->budget;
-            $service->timeline = $request->timeline;
+            $model = Service::findOrFail($id);
+            $model->title = $request->title;
+            $model->short_desc = $request->short_desc;
+            $model->slug = Str::slug($request->slug ?? '');
+            $model->content = $request->content;
+            $model->status = $request->status;
+            $model->price = $request->price;
+            $model->details = $request->details;
+            $model->budget = $request->budget;
+            $model->timeline = $request->timeline;
 
             if ($request->has('image') && $request->has('image_public_id')) {
-                if ($service->image_public_id) {
-                    Cloudinary::destroy($service->image_public_id);
-                }
-
-                $service->image = $request->image;
-                $service->image_public_id = $request->image_public_id;
+                $model->image = $request->image;
+                $model->image_public_id = $request->image_public_id;
             }
 
-            $service->save();
+            $model->save();
 
             return response()->json([
                 'status' => true,
@@ -129,10 +130,12 @@ class ServiceController extends Controller
             return response()->json([
                 'status' => false,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ], 500);
         }
     }
+
+
 
 
 

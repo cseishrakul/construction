@@ -91,6 +91,8 @@ const EditService = () => {
     e.preventDefault();
 
     const submitData = new FormData();
+    console.log("Submitting formData:", formData);
+
     Object.keys(formData).forEach((key) => {
       submitData.append(key, formData[key]);
     });
@@ -100,13 +102,17 @@ const EditService = () => {
       submitData.append("image_public_id", imageData.public_id);
 
     try {
-      const response = await fetch("https://construction-aqri.onrender.com/api/services/${id}", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token()}`,
-        },
-        body: submitData,
-      });
+      const response = await fetch(
+        `https://construction-aqri.onrender.com/api/services/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token()}`,
+            "Content-Type": "multipart/form-data",
+          },
+          body: submitData,
+        }
+      );
 
       const result = await response.json();
       if (result.status) {
