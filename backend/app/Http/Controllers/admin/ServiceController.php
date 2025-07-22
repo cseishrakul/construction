@@ -8,7 +8,6 @@ use App\Models\TempImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\File;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ServiceController extends Controller
@@ -130,8 +129,6 @@ class ServiceController extends Controller
             $tempImage = TempImage::find($request->imageId);
             if ($tempImage != null) {
                 $srcPath = public_path('uploads/temp/' . $tempImage->name);
-
-                // ❌ Delete old Cloudinary image if exists
                 if ($service->image_public_id) {
                     Cloudinary::destroy($service->image_public_id);
                 }
@@ -168,8 +165,6 @@ class ServiceController extends Controller
                 'message' => 'Service not found!'
             ]);
         }
-
-        // ❌ Delete from Cloudinary
         if ($service->image_public_id) {
             Cloudinary::destroy($service->image_public_id);
         }
