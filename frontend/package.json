@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.5",
+    "axios": "^1.10.0",
     "bootstrap": "^5.3.6",
     "jodit-react": "^5.2.19",
     "react": "^19.1.0",

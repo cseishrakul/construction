@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+use Illuminate\Support\Facades\Log;
 
 class ServiceController extends Controller
 {
@@ -48,25 +49,10 @@ class ServiceController extends Controller
         $model->budget = $request->budget;
         $model->timeline = $request->timeline;
 
-        // ✅ Upload image to Cloudinary
-        if ($request->imageId > 0) {
-            $tempImage = TempImage::find($request->imageId);
-            if ($tempImage != null) {
-                $srcPath = public_path('uploads/temp/' . $tempImage->name);
-                $uploadedFile = Cloudinary::upload($srcPath, [
-                    'folder' => 'services',
-                    'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME),
-                    'overwrite' => true
-                ]);
-
-                // Save secure URL + public ID for deletion
-                $model->image = $uploadedFile->getSecurePath();
-                $model->image_public_id = $uploadedFile->getPublicId();
-
-                // Optional cleanup
-                @unlink($srcPath);
-                $tempImage->delete();
-            }
+        // Use Cloudinary URLs sent from frontend directly
+        if ($request->has('image') && $request->has('image_public_id')) {
+            $model->image = $request->image; // URL from Cloudinary
+            $model->image_public_id = $request->image_public_id;
         }
 
         $model->save();
@@ -76,6 +62,7 @@ class ServiceController extends Controller
             'message' => 'Service added successfully!'
         ]);
     }
+
 
     public function show($id)
     {

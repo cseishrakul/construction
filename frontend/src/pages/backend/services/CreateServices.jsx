@@ -1,228 +1,202 @@
-import React, { useState, useRef, useMemo } from "react";
-import JoditEditor from "jodit-react";
-import Sidebar from "../../../components/backend/dashboard/Sidebar";
-import { Link, useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { apiurl, token } from "../../../components/frontend/Http";
+import React, { useState } from "react";
+import axios from "axios";
 import { toast } from "react-toastify";
+import { token } from "../../../components/frontend/Http";
 
-const CreateServices = ({ placeholder }) => {
-  const editor = useRef(null);
-  const [content, setContent] = useState("");
-  const [isDisable, setIsDisable] = useState(false);
-  const [imageId, setImageId] = useState(null);
+const CreateServices = () => {
+  const [formData, setFormData] = useState({
+    title: "",
+    slug: "",
+    short_desc: "",
+    content: "",
+    status: 1,
+    price: "",
+    details: "",
+    budget: "",
+    timeline: "",
+  });
 
-  const config = useMemo(
-    () => ({
-      readonly: false,
-      placeholder: placeholder || "Content",
-    }),
-    [placeholder]
-  );
+  const [imageData, setImageData] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm();
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
 
-  const navigate = useNavigate();
-
-  const handleFile = async (e) => {
-    const formData = new FormData();
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
-    formData.append("image", file);
+    if (!file) return;
+
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+    uploadData.append("upload_preset", "react_unsigned"); // 🔁 Replace
+    setUploading(true);
 
     try {
-      const res = await fetch(apiurl + "temp-images", {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        body: formData,
-      });
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dwelnewv8/image/upload",
+        {
+          method: "POST",
+          body: uploadData,
+        }
+      );
 
-      const result = await res.json();
-      if (!result.status) {
-        toast.error(result.errors?.image?.[0] || "Upload failed.");
+      const data = await res.json();
+
+      if (data.secure_url) {
+        setImageData({
+          url: data.secure_url,
+          public_id: data.public_id,
+        });
+        toast.success("Image uploaded!");
       } else {
-        setImageId(result.data.id);
-        toast.success("Image uploaded successfully");
+        throw new Error("Image upload failed");
       }
-    } catch (error) {
-      toast.error("Image upload failed. Please try again.");
-      console.error("Upload error:", error);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload image");
+    } finally {
+      setUploading(false);
     }
   };
 
-  const onSubmit = async (data) => {
-    console.log("Image ID before submit:", imageId);
-    const newData = {
-      ...data,
-      content,
-      imageId,
-    };
+  const onSubmit = async (e) => {
+    e.preventDefault();
+
+    const submitData = new FormData();
+
+    Object.keys(formData).forEach((key) => {
+      submitData.append(key, formData[key]);
+    });
+
+    // Append image fields
+    if (imageData?.url) submitData.append("image", imageData.url);
+    if (imageData?.public_id)
+      submitData.append("image_public_id", imageData.public_id);
 
     try {
-      const res = await fetch(apiurl + "services", {
-        method: "POST",
-        headers: {
-          "Content-type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        body: JSON.stringify(newData),
-      });
+      const response = await axios.post(
+        "https://construction-aqri.onrender.com/api/services",
+        submitData,
+        {
+          headers: {
+            Authorization: `Bearer ${token()}`,
+            "Content-Type": "multipart/form-data", // Needed if you're sending FormData
+          },
+        }
+      );
 
-      const result = await res.json();
-      if (result.status) {
-        toast.success(result.message);
-        navigate("/admin/services");
+      if (response.data.status) {
+        toast.success("Service created successfully!");
+        setFormData({
+          title: "",
+          slug: "",
+          short_desc: "",
+          content: "",
+          status: 1,
+          price: "",
+          details: "",
+          budget: "",
+          timeline: "",
+        });
+        setImageData(null);
       } else {
-        toast.error(result.message || "Something went wrong");
+        toast.error("Validation error");
+        console.log(response.data.errors);
       }
-    } catch (err) {
-      toast.error("Request failed");
-      console.error(err);
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Something went wrong!");
     }
   };
 
   return (
-    <main className="p-5">
-      <div className="flex gap-6">
-        <div className="w-64">
-          <Sidebar />
-        </div>
+    <form onSubmit={onSubmit} className="max-w-xl mx-auto space-y-4">
+      <input
+        name="title"
+        value={formData.title}
+        onChange={handleChange}
+        placeholder="Title"
+        className="border p-2 w-full"
+      />
+      <input
+        name="slug"
+        value={formData.slug}
+        onChange={handleChange}
+        placeholder="Slug"
+        className="border p-2 w-full"
+      />
+      <input
+        name="short_desc"
+        value={formData.short_desc}
+        onChange={handleChange}
+        placeholder="Short Description"
+        className="border p-2 w-full"
+      />
+      <textarea
+        name="content"
+        value={formData.content}
+        onChange={handleChange}
+        placeholder="Content"
+        className="border p-2 w-full"
+      />
+      <input
+        name="price"
+        value={formData.price}
+        onChange={handleChange}
+        placeholder="Price"
+        className="border p-2 w-full"
+      />
+      <input
+        name="details"
+        value={formData.details}
+        onChange={handleChange}
+        placeholder="Details"
+        className="border p-2 w-full"
+      />
+      <input
+        name="budget"
+        value={formData.budget}
+        onChange={handleChange}
+        placeholder="Budget"
+        className="border p-2 w-full"
+      />
+      <input
+        name="timeline"
+        value={formData.timeline}
+        onChange={handleChange}
+        placeholder="Timeline"
+        className="border p-2 w-full"
+      />
 
-        <div className="flex-grow bg-white shadow rounded-lg p-6 min-h-[450px]">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-2xl font-semibold text-gray-800">Create Service</h4>
-            <Link to="/admin/services">
-              <button className="bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-lg text-white">
-                Back
-              </button>
-            </Link>
-          </div>
-          <hr className="mb-4 border-gray-300" />
-
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="row">
-              <div className="col-md-6 mb-3">
-                <label>Name</label>
-                <input
-                  {...register("title", { required: "Title is required" })}
-                  className={`form-control ${errors.title && "is-invalid"}`}
-                />
-                {errors.title && <p className="invalid-feedback">{errors.title.message}</p>}
-              </div>
-
-              <div className="col-md-6 mb-3">
-                <label>Slug</label>
-                <input
-                  {...register("slug", { required: "Slug is required" })}
-                  className={`form-control ${errors.slug && "is-invalid"}`}
-                />
-                {errors.slug && <p className="invalid-feedback">{errors.slug.message}</p>}
-              </div>
-
-              <div className="col-md-6 mb-3">
-                <label>Price</label>
-                <input
-                  {...register("price")}
-                  type="number"
-                  step="0.01"
-                  className="form-control"
-                />
-              </div>
-
-              <div className="col-md-6 mb-3">
-                <label>Budget</label>
-                <input
-                  {...register("budget")}
-                  type="text"
-                  className="form-control"
-                />
-              </div>
-
-              <div className="col-md-6 mb-3">
-                <label>Timeline</label>
-                <input
-                  {...register("timeline")}
-                  type="text"
-                  className="form-control"
-                />
-              </div>
-
-              <div className="col-md-6 mb-3">
-                <label>Image</label>
-                <input
-                  type="file"
-                  onChange={handleFile}
-                  className="form-control"
-                />
-              </div>
-
-              <div className="col-md-12 mb-3">
-                <label>Short Description</label>
-                <textarea
-                  {...register("short_desc", { required: "Short description is required" })}
-                  className={`form-control ${errors.short_desc && "is-invalid"}`}
-                  rows={3}
-                />
-                {errors.short_desc && (
-                  <p className="invalid-feedback">{errors.short_desc.message}</p>
-                )}
-              </div>
-
-              <div className="col-md-12 mb-3">
-                <label>Details</label>
-                <textarea
-                  {...register("details")}
-                  className="form-control"
-                  rows={3}
-                />
-              </div>
-
-              <div className="col-md-12 mb-3">
-                <label>Content</label>
-                <JoditEditor
-                  ref={editor}
-                  value={content}
-                  config={config}
-                  tabIndex={1}
-                  onBlur={(newContent) => setContent(newContent)}
-                />
-              </div>
-
-              <div className="col-md-6 mb-4">
-                <label>Status</label>
-                <select
-                  {...register("status", { required: "Status is required" })}
-                  className={`form-control ${errors.status && "is-invalid"}`}
-                >
-                  <option value="">Select Status</option>
-                  <option value="1">Active</option>
-                  <option value="0">Blocked</option>
-                </select>
-                {errors.status && (
-                  <p className="invalid-feedback">{errors.status.message}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-3">
-              <button
-                className="w-full border p-2 border-purple-400 rounded-lg font-semibold hover:bg-purple-400 hover:text-white"
-                disabled={isDisable}
-              >
-                Submit
-              </button>
-            </div>
-          </form>
-        </div>
+      <div className="space-y-2">
+        <label className="block">Upload Image:</label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="border p-2"
+        />
+        {uploading && <p className="text-sm text-blue-500">Uploading...</p>}
+        {imageData?.url && (
+          <img
+            src={imageData.url}
+            alt="Uploaded"
+            className="w-40 h-40 object-cover border"
+          />
+        )}
       </div>
-    </main>
+
+      <button
+        type="submit"
+        className="bg-blue-600 text-white py-2 px-4 rounded"
+      >
+        Submit
+      </button>
+    </form>
   );
 };
 
