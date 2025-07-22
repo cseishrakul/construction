@@ -92,18 +92,6 @@ class ServiceController extends Controller
         try {
             $request->merge(['slug' => Str::slug($request->slug ?? '')]);
 
-            $validator = Validator::make($request->all(), [
-                'title' => 'required',
-                'slug' => 'required|unique:services,slug,' . $id, // Allow current slug
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'status' => false,
-                    'errors' => $validator->errors()
-                ]);
-            }
-
             $model = Service::findOrFail($id);
             $model->title = $request->title;
             $model->short_desc = $request->short_desc;
