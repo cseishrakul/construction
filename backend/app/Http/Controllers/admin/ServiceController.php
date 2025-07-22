@@ -155,29 +155,39 @@ class ServiceController extends Controller
         }
     }
 
-
-
-
-
-
     public function destroy($id)
     {
-        $service = Service::find($id);
-        if ($service == null) {
+        try {
+            $service = Service::find($id);
+
+            if (!$service) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Service not found!'
+                ], 404);
+            }
+
+            if ($service->image_public_id) {
+                try {
+                    Cloudinary::destroy($service->image_public_id);
+                } catch (\Exception $e) {
+                    Log::error("Cloudinary error: " . $e->getMessage());
+                }
+            }
+
+            $service->delete();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Service deleted successfully!'
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Delete failed: " . $e->getMessage());
+
             return response()->json([
                 'status' => false,
-                'message' => 'Service not found!'
-            ]);
+                'message' => 'Server error: ' . $e->getMessage()
+            ], 500);
         }
-        if ($service->image_public_id) {
-            Cloudinary::destroy($service->image_public_id);
-        }
-
-        $service->delete();
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Service deleted successfully!'
-        ]);
     }
 }
