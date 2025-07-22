@@ -51,11 +51,7 @@ const ServicesComponent = () => {
                 <div className="col-md-3 mb-5" key={i}>
                   <div className="bg-white rounded-2xl shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg h-full flex flex-col">
                     <img
-                      src={
-                        service.image
-                          ? `https://construction-aqri.onrender.com/uploads/services/small/${service.image}`
-                          : "https://via.placeholder.com/400x200.png?text=No+Image"
-                      }
+                      src={service.image}
                       alt={service.title}
                       className="w-full h-52 object-cover rounded-t-2xl bg-gray-200"
                     />
