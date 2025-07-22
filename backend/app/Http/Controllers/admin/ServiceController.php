@@ -87,28 +87,61 @@ class ServiceController extends Controller
         ]);
     }
 
-    public function update(Request $request, $id)
+    public function update($id, Request $request)
     {
         try {
-            $request->merge(['slug' => Str::slug($request->slug ?? '')]);
+            $service = Service::find($id);
 
-            $model = Service::findOrFail($id);
-            $model->title = $request->title;
-            $model->short_desc = $request->short_desc;
-            $model->slug = Str::slug($request->slug ?? '');
-            $model->content = $request->content;
-            $model->status = $request->status;
-            $model->price = $request->price;
-            $model->details = $request->details;
-            $model->budget = $request->budget;
-            $model->timeline = $request->timeline;
-
-            if ($request->has('image') && $request->has('image_public_id')) {
-                $model->image = $request->image;
-                $model->image_public_id = $request->image_public_id;
+            if (!$service) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Service not found'
+                ]);
             }
 
-            $model->save();
+            $request->merge(['slug' => Str::slug($request->slug)]);
+            $validator = Validator::make($request->all(), [
+                'title' => 'required',
+                'slug' => 'required|unique:services,slug,' . $id . ',id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false,
+                    'errors' => $validator->errors()
+                ]);
+            }
+
+            $service->title = $request->title;
+            $service->slug = Str::slug($request->slug);
+            $service->short_desc = $request->short_desc;
+            $service->content = $request->content;
+            $service->price = $request->price;
+            $service->details = $request->details;
+            $service->budget = $request->budget;
+            $service->timeline = $request->timeline;
+            $service->status = $request->status;
+
+            if ($request->imageId > 0) {
+                $tempImage = TempImage::find($request->imageId);
+                if ($tempImage != null) {
+                    if ($service->image_public_id) {
+                        Cloudinary::destroy($service->image_public_id);
+                    }
+
+                    $srcPath = public_path('uploads/temp/' . $tempImage->name);
+
+                    $uploadResult = Cloudinary::upload($srcPath, [
+                        'folder' => 'services',
+                        'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME)
+                    ]);
+
+                    $service->image = $uploadResult->getSecurePath();
+                    $service->image_public_id = $uploadResult->getPublicId();
+                }
+            }
+
+            $service->save();
 
             return response()->json([
                 'status' => true,
@@ -117,11 +150,11 @@ class ServiceController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error' => $e->getMessage()
             ], 500);
         }
     }
+
 
 
 

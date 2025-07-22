@@ -1,287 +1,224 @@
-import React, { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { apiurl, token } from "../../../components/frontend/Http";
+import React, { useState, useRef, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../../../components/backend/dashboard/Sidebar";
 import { toast } from "react-toastify";
-import JoditEditor from "jodit-react";
+import { apiurl, token } from "../../../components/frontend/Http";
 
 const EditService = () => {
-  const editor = useRef(null);
-  const [formData, setFormData] = useState({
-    title: "",
-    slug: "",
-    short_desc: "",
-    content: "",
-    status: 1,
-    price: "",
-    details: "",
-    budget: "",
-    timeline: "",
-  });
-  const [imageData, setImageData] = useState(null);
-  const [uploading, setUploading] = useState(false);
-
   const { id } = useParams();
   const navigate = useNavigate();
+  const [imagePreview, setImagePreview] = useState(null);
+  const [serviceData, setServiceData] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const fetchService = async () => {
-      try {
-        const res = await fetch(`${apiurl}services/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token()}`,
-          },
-        });
-        const result = await res.json();
-        if (result.status) {
-          setFormData(result.data);
-          if (result.data.image) {
-            setImageData({
-              url: result.data.image,
-              public_id: result.data.image_public_id,
-            });
-          }
-        } else {
-          toast.error("Failed to load service");
-        }
-      } catch (err) {
-        toast.error("An error occurred while fetching service data");
-      }
-    };
-    fetchService();
-  }, [id]);
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const uploadData = new FormData();
-    uploadData.append("file", file);
-    uploadData.append("upload_preset", "react_unsigned");
-    setUploading(true);
-
-    try {
-      const res = await fetch(
-        "https://api.cloudinary.com/v1_1/dwelnewv8/image/upload",
-        {
-          method: "POST",
-          body: uploadData,
-        }
-      );
-
-      const data = await res.json();
-      if (data.secure_url) {
-        setImageData({ url: data.secure_url, public_id: data.public_id });
-        toast.success("Image uploaded!");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors },
+  } = useForm({
+    defaultValues: async () => {
+      const res = await fetch(`${apiurl}services/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token()}`,
+          Accept: "application/json",
+        },
+      });
+      const result = await res.json();
+      if (result.status && result.data) {
+        setServiceData(result.data);
+        setImagePreview(result.data.image || null);
+        return {
+          title: result.data.title,
+          slug: result.data.slug,
+          short_desc: result.data.short_desc,
+          content: result.data.content,
+          price: result.data.price,
+          details: result.data.details || "",
+          budget: result.data.budget || "",
+          timeline: result.data.timeline || "",
+          status: String(result.data.status), // make sure it’s a string for select
+        };
       } else {
-        throw new Error("Image upload failed");
+        toast.error("Failed to load service data");
+        return {};
       }
-    } catch (err) {
-      toast.error("Failed to upload image");
-    } finally {
-      setUploading(false);
-    }
-  };
+    },
+  });
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
-
-    const submitData = new FormData();
-    console.log("Submitting formData:", formData);
-
-    Object.keys(formData).forEach((key) => {
-      submitData.append(key, formData[key]);
-    });
-
-    if (imageData?.url) submitData.append("image", imageData.url);
-    if (imageData?.public_id)
-      submitData.append("image_public_id", imageData.public_id);
-
+  const onSubmit = async (data) => {
+    setIsSubmitting(true);
     try {
-      const response = await fetch(
-        `https://construction-aqri.onrender.com/api/services/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token()}`,
-            "Content-Type": "multipart/form-data",
-          },
-          body: submitData,
-        }
-      );
+      const formData = new FormData();
 
-      const result = await response.json();
+      // Append all form fields except image
+      Object.entries(data).forEach(([key, value]) => {
+        if (key !== "image") formData.append(key, value);
+      });
+
+      // Handle image file upload (if any)
+      if (data.image && data.image.length > 0) {
+        formData.append("image", data.image[0]);
+      } else if (serviceData?.image) {
+        // keep existing image if no new upload
+        formData.append("image", serviceData.image);
+        if (serviceData.image_public_id) {
+          formData.append("image_public_id", serviceData.image_public_id);
+        }
+      }
+
+      const res = await fetch(`${apiurl}services/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token()}`,
+          // Don't set Content-Type when using FormData
+        },
+        body: formData,
+      });
+
+      const result = await res.json();
       if (result.status) {
         toast.success("Service updated successfully!");
-        navigate("/admin/services");
+        navigate("/admin/services"); // adjust route if needed
       } else {
-        toast.error("Validation error");
-        console.log(result.errors);
+        toast.error(result.message || "Failed to update service");
       }
-    } catch (err) {
-      toast.error("Something went wrong");
+    } catch (error) {
+      console.error(error);
+      toast.error("An error occurred during submission");
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+      setValue("image", e.target.files); // update react-hook-form value for image
     }
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <div className="w-1/4 bg-gray-100 p-4 mt-0">
-        <Sidebar />
-      </div>
-
-      {/* Form Section */}
-      <div className="w-3/4 p-6 mt-4">
-        <form
-          onSubmit={onSubmit}
-          className="grid grid-cols-1 md:grid-cols-2 gap-4"
-        >
-          {/* Title */}
-          <div className="flex flex-col">
-            <label>Title</label>
+    <main className="p-5 min-h-screen flex gap-6 bg-gray-100">
+      <Sidebar />
+      <div className="flex-grow bg-white shadow rounded-lg p-6">
+        <h2 className="text-2xl font-semibold mb-6">Edit Service</h2>
+        <form onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data">
+          <div className="mb-4">
+            <label className="block mb-1">Title</label>
             <input
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              placeholder="Title"
-              className="border p-2"
+              {...register("title", { required: "Title is required" })}
+              className={`w-full border p-2 rounded ${errors.title ? "border-red-500" : "border-gray-300"}`}
+              type="text"
             />
+            {errors.title && <p className="text-red-600">{errors.title.message}</p>}
           </div>
 
-          {/* Slug */}
-          <div className="flex flex-col">
-            <label>Slug</label>
+          <div className="mb-4">
+            <label className="block mb-1">Slug</label>
             <input
-              name="slug"
-              value={formData.slug}
-              onChange={handleChange}
-              placeholder="Slug"
-              className="border p-2"
+              {...register("slug", { required: "Slug is required" })}
+              className={`w-full border p-2 rounded ${errors.slug ? "border-red-500" : "border-gray-300"}`}
+              type="text"
             />
+            {errors.slug && <p className="text-red-600">{errors.slug.message}</p>}
           </div>
 
-          {/* Short Description */}
-          <div className="flex flex-col col-span-2">
-            <label>Short Description</label>
+          <div className="mb-4">
+            <label className="block mb-1">Short Description</label>
+            <textarea
+              {...register("short_desc", { required: "Short description is required" })}
+              className={`w-full border p-2 rounded ${errors.short_desc ? "border-red-500" : "border-gray-300"}`}
+              rows={3}
+            />
+            {errors.short_desc && <p className="text-red-600">{errors.short_desc.message}</p>}
+          </div>
+
+          <div className="mb-4">
+            <label className="block mb-1">Content</label>
+            <textarea
+              {...register("content", { required: "Content is required" })}
+              className={`w-full border p-2 rounded ${errors.content ? "border-red-500" : "border-gray-300"}`}
+              rows={5}
+            />
+            {errors.content && <p className="text-red-600">{errors.content.message}</p>}
+          </div>
+
+          <div className="mb-4">
+            <label className="block mb-1">Price</label>
             <input
-              name="short_desc"
-              value={formData.short_desc}
-              onChange={handleChange}
-              placeholder="Short Description"
-              className="border p-2 w-full"
+              {...register("price", { required: "Price is required" })}
+              className={`w-full border p-2 rounded ${errors.price ? "border-red-500" : "border-gray-300"}`}
+              type="number"
+            />
+            {errors.price && <p className="text-red-600">{errors.price.message}</p>}
+          </div>
+
+          <div className="mb-4">
+            <label className="block mb-1">Details</label>
+            <textarea
+              {...register("details")}
+              className="w-full border p-2 rounded border-gray-300"
+              rows={3}
             />
           </div>
 
-          {/* Content */}
-          <div className="flex flex-col col-span-2">
-            <label>Content</label>
-            <JoditEditor
-              ref={editor}
-              value={formData.content}
-              tabIndex={1}
-              onBlur={(newContent) =>
-                setFormData({ ...formData, content: newContent })
-              }
-            />
-          </div>
-
-          {/* Price */}
-          <div className="flex flex-col">
-            <label>Price</label>
+          <div className="mb-4">
+            <label className="block mb-1">Budget</label>
             <input
-              name="price"
-              value={formData.price}
-              onChange={handleChange}
-              placeholder="Price"
-              className="border p-2"
+              {...register("budget")}
+              className="w-full border p-2 rounded border-gray-300"
+              type="text"
             />
           </div>
 
-          {/* Details */}
-          <div className="flex flex-col">
-            <label>Details</label>
+          <div className="mb-4">
+            <label className="block mb-1">Timeline</label>
             <input
-              name="details"
-              value={formData.details}
-              onChange={handleChange}
-              placeholder="Details"
-              className="border p-2"
+              {...register("timeline")}
+              className="w-full border p-2 rounded border-gray-300"
+              type="text"
             />
           </div>
 
-          {/* Budget */}
-          <div className="flex flex-col">
-            <label>Budget</label>
-            <input
-              name="budget"
-              value={formData.budget}
-              onChange={handleChange}
-              placeholder="Budget"
-              className="border p-2"
-            />
-          </div>
-
-          {/* Timeline */}
-          <div className="flex flex-col">
-            <label>Timeline</label>
-            <input
-              name="timeline"
-              value={formData.timeline}
-              onChange={handleChange}
-              placeholder="Timeline"
-              className="border p-2"
-            />
-          </div>
-
-          {/* Image Upload */}
-          <div className="flex flex-col col-span-2">
-            <label>Upload Image</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="border p-2"
-            />
-            {uploading && <p className="text-sm text-blue-500">Uploading...</p>}
-            {imageData?.url && (
-              <img
-                src={imageData.url}
-                alt="Uploaded"
-                className="w-40 h-40 object-cover mt-2 border"
-              />
-            )}
-          </div>
-
-          {/* Status */}
-          <div className="flex flex-col col-span-2">
-            <label>Status</label>
+          <div className="mb-4">
+            <label className="block mb-1">Status</label>
             <select
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              className="border p-2"
+              {...register("status", { required: "Status is required" })}
+              className={`w-full border p-2 rounded ${errors.status ? "border-red-500" : "border-gray-300"}`}
             >
+              <option value="">Select Status</option>
               <option value="1">Active</option>
               <option value="0">Inactive</option>
             </select>
+            {errors.status && <p className="text-red-600">{errors.status.message}</p>}
           </div>
 
-          {/* Submit Button */}
-          <div className="col-span-2">
-            <button
-              type="submit"
-              className="bg-blue-600 text-white py-2 px-4 rounded w-full"
-            >
-              Update
-            </button>
+          <div className="mb-6">
+            <label className="block mb-1">Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="w-full border p-2 rounded border-gray-300"
+            />
+            {imagePreview && (
+              <img src={imagePreview} alt="Preview" className="mt-3 w-40 rounded border" />
+            )}
           </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition w-full"
+          >
+            {isSubmitting ? "Updating..." : "Update Service"}
+          </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 };
 
