@@ -24,44 +24,52 @@ class ServiceController extends Controller
 
     public function store(Request $request)
     {
-        $request->merge(['slug' => Str::slug($request->slug)]);
+        try {
+            $request->merge(['slug' => Str::slug($request->slug ?? '')]);
 
-        $validator = Validator::make($request->all(), [
-            'title' => 'required',
-            'slug' => 'required|unique:services,slug'
-        ]);
+            $validator = Validator::make($request->all(), [
+                'title' => 'required',
+                'slug' => 'required|unique:services,slug'
+            ]);
 
-        if ($validator->fails()) {
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false,
+                    'errors' => $validator->errors()
+                ]);
+            }
+
+            $model = new Service();
+            $model->title = $request->title;
+            $model->short_desc = $request->short_desc;
+            $model->slug = Str::slug($request->slug ?? '');
+            $model->content = $request->content;
+            $model->status = $request->status;
+            $model->price = $request->price;
+            $model->details = $request->details;
+            $model->budget = $request->budget;
+            $model->timeline = $request->timeline;
+
+            if ($request->has('image') && $request->has('image_public_id')) {
+                $model->image = $request->image;
+                $model->image_public_id = $request->image_public_id;
+            }
+
+            $model->save();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Service added successfully!'
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'errors' => $validator->errors()
-            ]);
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], 500);
         }
-
-        $model = new Service();
-        $model->title = $request->title;
-        $model->short_desc = $request->short_desc;
-        $model->slug = Str::slug($request->slug);
-        $model->content = $request->content;
-        $model->status = $request->status;
-        $model->price = $request->price;
-        $model->details = $request->details;
-        $model->budget = $request->budget;
-        $model->timeline = $request->timeline;
-
-        // Use Cloudinary URLs sent from frontend directly
-        if ($request->has('image') && $request->has('image_public_id')) {
-            $model->image = $request->image; // URL from Cloudinary
-            $model->image_public_id = $request->image_public_id;
-        }
-
-        $model->save();
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Service added successfully!'
-        ]);
     }
+
 
 
     public function show($id)
