@@ -88,69 +88,71 @@ class ServiceController extends Controller
     }
 
     public function update(Request $request, $id)
-{
-    try {
-        $service = Service::find($id);
+    {
+        try {
+            $service = Service::find($id);
 
-        if (!$service) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Service not found!',
-            ]);
-        }
-
-        // If slug not provided, generate from title
-        $request->merge([
-            'slug' => Str::slug($request->slug ?? $request->title ?? '')
-        ]);
-
-        $validator = Validator::make($request->all(), [
-            'title' => 'required',
-            'slug' => 'required|unique:services,slug,' . $id,
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'errors' => $validator->errors()
-            ]);
-        }
-
-        $service->title = $request->title;
-        $service->slug = $request->slug;
-        $service->short_desc = $request->short_desc;
-        $service->content = $request->content;
-        $service->status = $request->status;
-        $service->price = $request->price;
-        $service->details = $request->details;
-        $service->budget = $request->budget;
-        $service->timeline = $request->timeline;
-
-        if ($request->has('image') && $request->has('image_public_id')) {
-            // Delete old image from Cloudinary if exists
-            if ($service->image_public_id) {
-                Cloudinary::destroy($service->image_public_id);
+            if (!$service) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Service not found!',
+                ]);
             }
 
-            $service->image = $request->image;
-            $service->image_public_id = $request->image_public_id;
+            $request->merge([
+                'slug' => Str::slug($request->slug ?? $request->title ?? '')
+            ]);
+
+            $validator = Validator::make($request->all(), [
+                'title' => 'required',
+                'slug' => 'required|unique:services,slug,' . $id,
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false,
+                    'errors' => $validator->errors()
+                ]);
+            }
+
+            $service->title = $request->title;
+            $service->slug = $request->slug;
+            $service->short_desc = $request->short_desc;
+            $service->content = $request->content;
+            $service->status = $request->status;
+            $service->price = $request->price;
+            $service->details = $request->details;
+            $service->budget = $request->budget;
+            $service->timeline = $request->timeline;
+
+            if ($request->filled('image') && $request->filled('image_public_id')) {
+                if (!empty($service->image_public_id) && is_string($service->image_public_id)) {
+                    try {
+                        Cloudinary::destroy($service->image_public_id);
+                    } catch (\Exception $ex) {
+                    }
+                }
+                if (is_string($request->image) && is_string($request->image_public_id)) {
+                    $service->image = $request->image;
+                    $service->image_public_id = $request->image_public_id;
+                }
+            }
+
+            $service->save();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Service updated successfully!',
+                'data' => $service,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], 500);
         }
-
-        $service->save();
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Service updated successfully!',
-            'data' => $service,
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => false,
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-        ], 500);
     }
-}
 
 
 
