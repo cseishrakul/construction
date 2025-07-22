@@ -88,7 +88,8 @@ class ServiceController extends Controller
     }
 
     public function update(Request $request, $id)
-    {
+{
+    try {
         $service = Service::find($id);
 
         if (!$service) {
@@ -98,19 +99,35 @@ class ServiceController extends Controller
             ]);
         }
 
+        // If slug not provided, generate from title
+        $request->merge([
+            'slug' => Str::slug($request->slug ?? $request->title ?? '')
+        ]);
+
+        $validator = Validator::make($request->all(), [
+            'title' => 'required',
+            'slug' => 'required|unique:services,slug,' . $id,
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'errors' => $validator->errors()
+            ]);
+        }
+
         $service->title = $request->title;
         $service->slug = $request->slug;
         $service->short_desc = $request->short_desc;
         $service->content = $request->content;
+        $service->status = $request->status;
         $service->price = $request->price;
         $service->details = $request->details;
         $service->budget = $request->budget;
         $service->timeline = $request->timeline;
-        $service->status = $request->status;
 
-        // If new image and public_id provided, update them
         if ($request->has('image') && $request->has('image_public_id')) {
-            // Optionally delete the old image from Cloudinary
+            // Delete old image from Cloudinary if exists
             if ($service->image_public_id) {
                 Cloudinary::destroy($service->image_public_id);
             }
@@ -126,7 +143,15 @@ class ServiceController extends Controller
             'message' => 'Service updated successfully!',
             'data' => $service,
         ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ], 500);
     }
+}
+
 
 
     public function destroy($id)
