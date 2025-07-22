@@ -1,103 +1,126 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../../../components/backend/dashboard/Sidebar";
 import { toast } from "react-toastify";
-import { apiurl, token } from "../../../components/frontend/Http";
+import { apiurl, token, fileurl } from "../../../components/frontend/Http";
 
 const EditService = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [imagePreview, setImagePreview] = useState(null);
   const [serviceData, setServiceData] = useState(null);
+  const [imageId, setImageId] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors },
   } = useForm({
-    defaultValues: async () => {
-      const res = await fetch(`${apiurl}services/${id}`, {
+    defaultValues: {},
+  });
+
+  useEffect(() => {
+    const fetchService = async () => {
+      try {
+        const res = await fetch(`${apiurl}services/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token()}`,
+            Accept: "application/json",
+          },
+        });
+        const result = await res.json();
+        if (result.status && result.data) {
+          setServiceData(result.data);
+          setImagePreview(result.data.image || null);
+          reset({
+            title: result.data.title,
+            slug: result.data.slug,
+            short_desc: result.data.short_desc,
+            content: result.data.content,
+            price: result.data.price,
+            details: result.data.details || "",
+            budget: result.data.budget || "",
+            timeline: result.data.timeline || "",
+            status: String(result.data.status),
+          });
+        } else {
+          toast.error("Failed to load service data");
+        }
+      } catch (error) {
+        toast.error("Failed to fetch service data");
+      }
+    };
+
+    fetchService();
+  }, [id, reset]);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setImagePreview(URL.createObjectURL(file));
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const res = await fetch(`${apiurl}temp-images`, {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token()}`,
           Accept: "application/json",
-        },
-      });
-      const result = await res.json();
-      if (result.status && result.data) {
-        setServiceData(result.data);
-        setImagePreview(result.data.image || null);
-        return {
-          title: result.data.title,
-          slug: result.data.slug,
-          short_desc: result.data.short_desc,
-          content: result.data.content,
-          price: result.data.price,
-          details: result.data.details || "",
-          budget: result.data.budget || "",
-          timeline: result.data.timeline || "",
-          status: String(result.data.status), // make sure it’s a string for select
-        };
-      } else {
-        toast.error("Failed to load service data");
-        return {};
-      }
-    },
-  });
-
-  const onSubmit = async (data) => {
-    setIsSubmitting(true);
-    try {
-      const formData = new FormData();
-
-      // Append all form fields except image
-      Object.entries(data).forEach(([key, value]) => {
-        if (key !== "image") formData.append(key, value);
-      });
-
-      // Handle image file upload (if any)
-      if (data.image && data.image.length > 0) {
-        formData.append("image", data.image[0]);
-      } else if (serviceData?.image) {
-        // keep existing image if no new upload
-        formData.append("image", serviceData.image);
-        if (serviceData.image_public_id) {
-          formData.append("image_public_id", serviceData.image_public_id);
-        }
-      }
-
-      const res = await fetch(`${apiurl}services/${id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token()}`,
-          // Don't set Content-Type when using FormData
         },
         body: formData,
       });
 
       const result = await res.json();
+
+      if (result.status) {
+        setImageId(result.data.id);
+        toast.success("Image uploaded successfully");
+      } else {
+        toast.error(result.errors?.image?.[0] || "Image upload failed");
+      }
+    } catch (error) {
+      toast.error("Image upload failed. Please try again.");
+    }
+  };
+
+  const onSubmit = async (data) => {
+    setIsSubmitting(true);
+
+    const payload = {
+      ...data,
+      imageId: imageId || serviceData?.image_id || null,
+    };
+
+    try {
+      const res = await fetch(`${apiurl}services/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token()}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await res.json();
+
       if (result.status) {
         toast.success("Service updated successfully!");
-        navigate("/admin/services"); // adjust route if needed
+        navigate("/admin/services");
       } else {
         toast.error(result.message || "Failed to update service");
       }
     } catch (error) {
-      console.error(error);
       toast.error("An error occurred during submission");
     }
-    setIsSubmitting(false);
-  };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImagePreview(URL.createObjectURL(file));
-      setValue("image", e.target.files); // update react-hook-form value for image
-    }
+    setIsSubmitting(false);
   };
 
   return (
@@ -105,7 +128,7 @@ const EditService = () => {
       <Sidebar />
       <div className="flex-grow bg-white shadow rounded-lg p-6">
         <h2 className="text-2xl font-semibold mb-6">Edit Service</h2>
-        <form onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data">
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="mb-4">
             <label className="block mb-1">Title</label>
             <input
@@ -201,7 +224,7 @@ const EditService = () => {
             <input
               type="file"
               accept="image/*"
-              onChange={handleImageChange}
+              onChange={handleFileChange}
               className="w-full border p-2 rounded border-gray-300"
             />
             {imagePreview && (
