@@ -96,11 +96,7 @@ const Services = () => {
                     <td className="py-2 px-4 border">{service.id}</td>
                     <td className="py-2 px-4 border">
                       <img
-                        src={
-                          service.image
-                            ? `https://construction-aqri.onrender.com/uploads/services/small/${service.image}`
-                            : "https://via.placeholder.com/400x200.png?text=No+Image"
-                        }
+                        src={service.image}
                         alt={service.title}
                         className="w-20 h-16 object-contain mx-auto"
                       />
