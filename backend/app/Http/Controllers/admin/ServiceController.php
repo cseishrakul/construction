@@ -87,73 +87,47 @@ class ServiceController extends Controller
         ]);
     }
 
-    public function update($id, Request $request)
+    public function update(Request $request, $id)
     {
-        try {
-            $service = Service::find($id);
+        $service = Service::find($id);
 
-            if (!$service) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'Service not found'
-                ]);
-            }
-
-            $request->merge(['slug' => Str::slug($request->slug)]);
-            $validator = Validator::make($request->all(), [
-                'title' => 'required',
-                'slug' => 'required|unique:services,slug,' . $id . ',id'
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'status' => false,
-                    'errors' => $validator->errors()
-                ]);
-            }
-
-            $service->title = $request->title;
-            $service->slug = Str::slug($request->slug);
-            $service->short_desc = $request->short_desc;
-            $service->content = $request->content;
-            $service->price = $request->price;
-            $service->details = $request->details;
-            $service->budget = $request->budget;
-            $service->timeline = $request->timeline;
-            $service->status = $request->status;
-
-            if ($request->imageId > 0) {
-                $tempImage = TempImage::find($request->imageId);
-                if ($tempImage != null) {
-                    if ($service->image_public_id) {
-                        Cloudinary::destroy($service->image_public_id);
-                    }
-
-                    $srcPath = public_path('uploads/temp/' . $tempImage->name);
-
-                    $uploadResult = Cloudinary::upload($srcPath, [
-                        'folder' => 'services',
-                        'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME)
-                    ]);
-
-                    $service->image = $uploadResult->getSecurePath();
-                    $service->image_public_id = $uploadResult->getPublicId();
-                }
-            }
-
-            $service->save();
-
-            return response()->json([
-                'status' => true,
-                'message' => 'Service updated successfully!'
-            ]);
-        } catch (\Exception $e) {
+        if (!$service) {
             return response()->json([
                 'status' => false,
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => 'Service not found!',
+            ]);
         }
+
+        $service->title = $request->title;
+        $service->slug = $request->slug;
+        $service->short_desc = $request->short_desc;
+        $service->content = $request->content;
+        $service->price = $request->price;
+        $service->details = $request->details;
+        $service->budget = $request->budget;
+        $service->timeline = $request->timeline;
+        $service->status = $request->status;
+
+        // If new image and public_id provided, update them
+        if ($request->has('image') && $request->has('image_public_id')) {
+            // Optionally delete the old image from Cloudinary
+            if ($service->image_public_id) {
+                Cloudinary::destroy($service->image_public_id);
+            }
+
+            $service->image = $request->image;
+            $service->image_public_id = $request->image_public_id;
+        }
+
+        $service->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Service updated successfully!',
+            'data' => $service,
+        ]);
     }
+
 
     public function destroy($id)
     {
