@@ -98,19 +98,7 @@ class ServiceController extends Controller
                 ], 404);
             }
 
-            $request->merge(['slug' => Str::slug($request->slug ?? '')]);
-
-            $validator = Validator::make($request->all(), [
-                'title' => 'required',
-                'slug' => 'required|unique:services,slug,' . $id
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'status' => false,
-                    'errors' => $validator->errors()
-                ]);
-            }
+            // Skip validation here!
 
             $service->title = $request->title;
             $service->short_desc = $request->short_desc;
@@ -122,9 +110,7 @@ class ServiceController extends Controller
             $service->budget = $request->budget;
             $service->timeline = $request->timeline;
 
-            // ✅ If new image data is passed from frontend
             if ($request->has('image') && $request->has('image_public_id')) {
-                // Delete old image from Cloudinary
                 if ($service->image_public_id) {
                     Cloudinary::destroy($service->image_public_id);
                 }
@@ -147,6 +133,7 @@ class ServiceController extends Controller
             ], 500);
         }
     }
+
 
 
     public function destroy($id)

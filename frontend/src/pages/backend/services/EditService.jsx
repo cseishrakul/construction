@@ -89,28 +89,32 @@ const EditService = () => {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+
     const submitData = new FormData();
     Object.keys(formData).forEach((key) => {
       submitData.append(key, formData[key]);
     });
+
     if (imageData?.url) submitData.append("image", imageData.url);
     if (imageData?.public_id)
       submitData.append("image_public_id", imageData.public_id);
 
     try {
-      const response = await fetch(`${apiurl}services/${id}`, {
-        method: "POST",
+      const response = await fetch("https://construction-aqri.onrender.com/api/services/${id}", {
+        method: "PUT",
         headers: {
           Authorization: `Bearer ${token()}`,
         },
         body: submitData,
       });
+
       const result = await response.json();
       if (result.status) {
         toast.success("Service updated successfully!");
         navigate("/admin/services");
       } else {
         toast.error("Validation error");
+        console.log(result.errors);
       }
     } catch (err) {
       toast.error("Something went wrong");
@@ -118,114 +122,159 @@ const EditService = () => {
   };
 
   return (
-    <div className="">
-      <Sidebar />
-      <form onSubmit={onSubmit} className="max-w-xl mx-auto space-y-4">
-        <label>Title</label>
-        <input
-          name="title"
-          value={formData.title}
-          onChange={handleChange}
-          placeholder="Title"
-          className="border p-2 w-full"
-        />
+    <div className="flex min-h-screen">
+      {/* Sidebar */}
+      <div className="w-1/4 bg-gray-100 p-4 mt-0">
+        <Sidebar />
+      </div>
 
-        <label>Slug</label>
-        <input
-          name="slug"
-          value={formData.slug}
-          onChange={handleChange}
-          placeholder="Slug"
-          className="border p-2 w-full"
-        />
-
-        <label>Short Description</label>
-        <input
-          name="short_desc"
-          value={formData.short_desc}
-          onChange={handleChange}
-          placeholder="Short Description"
-          className="border p-2 w-full"
-        />
-
-        <label>Content</label>
-        <JoditEditor
-          ref={editor}
-          value={formData.content}
-          tabIndex={1}
-          onBlur={(newContent) => setFormData({ ...formData, content: newContent })}
-        />
-
-        <label>Price</label>
-        <input
-          name="price"
-          value={formData.price}
-          onChange={handleChange}
-          placeholder="Price"
-          className="border p-2 w-full"
-        />
-
-        <label>Details</label>
-        <input
-          name="details"
-          value={formData.details}
-          onChange={handleChange}
-          placeholder="Details"
-          className="border p-2 w-full"
-        />
-
-        <label>Budget</label>
-        <input
-          name="budget"
-          value={formData.budget}
-          onChange={handleChange}
-          placeholder="Budget"
-          className="border p-2 w-full"
-        />
-
-        <label>Timeline</label>
-        <input
-          name="timeline"
-          value={formData.timeline}
-          onChange={handleChange}
-          placeholder="Timeline"
-          className="border p-2 w-full"
-        />
-
-        <label>Upload Image</label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
-          className="border p-2"
-        />
-        {uploading && <p className="text-sm text-blue-500">Uploading...</p>}
-        {imageData?.url && (
-          <img
-            src={imageData.url}
-            alt="Uploaded"
-            className="w-40 h-40 object-cover border"
-          />
-        )}
-
-        <label>Status</label>
-        <select
-          name="status"
-          value={formData.status}
-          onChange={handleChange}
-          className="border p-2 w-full"
+      {/* Form Section */}
+      <div className="w-3/4 p-6 mt-4">
+        <form
+          onSubmit={onSubmit}
+          className="grid grid-cols-1 md:grid-cols-2 gap-4"
         >
-          <option value="1">Active</option>
-          <option value="0">Inactive</option>
-        </select>
+          {/* Title */}
+          <div className="flex flex-col">
+            <label>Title</label>
+            <input
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              placeholder="Title"
+              className="border p-2"
+            />
+          </div>
 
-        <button
-          type="submit"
-          className="bg-blue-600 text-white py-2 px-4 rounded"
-        >
-          Update
-        </button>
-      </form>
+          {/* Slug */}
+          <div className="flex flex-col">
+            <label>Slug</label>
+            <input
+              name="slug"
+              value={formData.slug}
+              onChange={handleChange}
+              placeholder="Slug"
+              className="border p-2"
+            />
+          </div>
+
+          {/* Short Description */}
+          <div className="flex flex-col col-span-2">
+            <label>Short Description</label>
+            <input
+              name="short_desc"
+              value={formData.short_desc}
+              onChange={handleChange}
+              placeholder="Short Description"
+              className="border p-2 w-full"
+            />
+          </div>
+
+          {/* Content */}
+          <div className="flex flex-col col-span-2">
+            <label>Content</label>
+            <JoditEditor
+              ref={editor}
+              value={formData.content}
+              tabIndex={1}
+              onBlur={(newContent) =>
+                setFormData({ ...formData, content: newContent })
+              }
+            />
+          </div>
+
+          {/* Price */}
+          <div className="flex flex-col">
+            <label>Price</label>
+            <input
+              name="price"
+              value={formData.price}
+              onChange={handleChange}
+              placeholder="Price"
+              className="border p-2"
+            />
+          </div>
+
+          {/* Details */}
+          <div className="flex flex-col">
+            <label>Details</label>
+            <input
+              name="details"
+              value={formData.details}
+              onChange={handleChange}
+              placeholder="Details"
+              className="border p-2"
+            />
+          </div>
+
+          {/* Budget */}
+          <div className="flex flex-col">
+            <label>Budget</label>
+            <input
+              name="budget"
+              value={formData.budget}
+              onChange={handleChange}
+              placeholder="Budget"
+              className="border p-2"
+            />
+          </div>
+
+          {/* Timeline */}
+          <div className="flex flex-col">
+            <label>Timeline</label>
+            <input
+              name="timeline"
+              value={formData.timeline}
+              onChange={handleChange}
+              placeholder="Timeline"
+              className="border p-2"
+            />
+          </div>
+
+          {/* Image Upload */}
+          <div className="flex flex-col col-span-2">
+            <label>Upload Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="border p-2"
+            />
+            {uploading && <p className="text-sm text-blue-500">Uploading...</p>}
+            {imageData?.url && (
+              <img
+                src={imageData.url}
+                alt="Uploaded"
+                className="w-40 h-40 object-cover mt-2 border"
+              />
+            )}
+          </div>
+
+          {/* Status */}
+          <div className="flex flex-col col-span-2">
+            <label>Status</label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="border p-2"
+            >
+              <option value="1">Active</option>
+              <option value="0">Inactive</option>
+            </select>
+          </div>
+
+          {/* Submit Button */}
+          <div className="col-span-2">
+            <button
+              type="submit"
+              className="bg-blue-600 text-white py-2 px-4 rounded w-full"
+            >
+              Update
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
