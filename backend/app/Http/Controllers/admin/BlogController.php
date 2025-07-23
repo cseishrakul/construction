@@ -4,11 +4,11 @@ namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Blog;
-use App\Models\TempImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+use Illuminate\Support\Facades\Log;
 
 class BlogController extends Controller
 {
@@ -24,149 +24,171 @@ class BlogController extends Controller
 
     public function store(Request $request)
     {
-        $request->merge(['slug' => Str::slug($request->slug)]);
+        try {
+            $request->merge(['slug' => Str::slug($request->slug ?? '')]);
 
-        $validator = Validator::make($request->all(), [
-            'title' => 'required',
-            'slug' => 'required|unique:blogs,slug',
-            'short_desc' => 'required',
-            'content' => 'required',
-            'status' => 'required|boolean'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'errors' => $validator->errors()
+            $validator = Validator::make($request->all(), [
+                'title' => 'required',
+                'slug' => 'required|unique:blogs,slug',
+                'short_desc' => 'nullable|string',
+                'content' => 'required',
+                'status' => 'required|boolean',
             ]);
-        }
 
-        $blog = new Blog();
-        $blog->title = $request->title;
-        $blog->slug = $request->slug;
-        $blog->short_desc = $request->short_desc;
-        $blog->content = $request->content;
-        $blog->status = $request->status;
-        $blog->save();
-
-        if ($request->imageId > 0) {
-            $tempImage = TempImage::find($request->imageId);
-
-            if ($tempImage) {
-                $srcPath = public_path('uploads/temp/' . $tempImage->name);
-
-                $uploadResult = Cloudinary::upload($srcPath, [
-                    'folder' => 'blogs',
-                    'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME)
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false,
+                    'errors' => $validator->errors()
                 ]);
-
-                $blog->image = $uploadResult->getSecurePath();
-                $blog->image_public_id = $uploadResult->getPublicId();
-                $blog->save();
             }
-        }
 
-        return response()->json([
-            'status' => true,
-            'message' => 'Blog added successfully!',
-            'data' => $blog
-        ]);
-    }
+            $blog = new Blog();
+            $blog->title = $request->title;
+            $blog->slug = $request->slug;
+            $blog->short_desc = $request->short_desc;
+            $blog->content = $request->content;
+            $blog->status = $request->status;
 
-    public function update($id, Request $request)
-    {
-        $blog = Blog::find($id);
-        if (!$blog) {
+            // Set image only if both are provided (from client)
+            if ($request->filled('image') && $request->filled('image_public_id')) {
+                $blog->image = $request->image;
+                $blog->image_public_id = $request->image_public_id;
+            }
+
+            $blog->save();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Blog added successfully!',
+                'data' => $blog
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Blog Store Error: " . $e->getMessage());
             return response()->json([
                 'status' => false,
-                'message' => 'Blog not found'
-            ]);
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], 500);
         }
-
-        $request->merge(['slug' => Str::slug($request->slug)]);
-        $validator = Validator::make($request->all(), [
-            'title' => 'required',
-            'slug' => 'required|unique:blogs,slug,' . $id . ',id',
-            'short_desc' => 'required',
-            'content' => 'required',
-            'status' => 'required|boolean'
-        ]);
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'errors' => $validator->errors()
-            ]);
-        }
-
-        $blog->title = $request->title;
-        $blog->slug = $request->slug;
-        $blog->short_desc = $request->short_desc;
-        $blog->content = $request->content;
-        $blog->status = $request->status;
-
-        if ($request->imageId > 0) {
-            $tempImage = TempImage::find($request->imageId);
-            if ($tempImage) {
-                // Delete old image
-                if ($blog->image_public_id) {
-                    Cloudinary::destroy($blog->image_public_id);
-                }
-
-                $srcPath = public_path('uploads/temp/' . $tempImage->name);
-
-                $uploadResult = Cloudinary::upload($srcPath, [
-                    'folder' => 'blogs',
-                    'public_id' => pathinfo($tempImage->name, PATHINFO_FILENAME)
-                ]);
-
-                $blog->image = $uploadResult->getSecurePath();
-                $blog->image_public_id = $uploadResult->getPublicId();
-            }
-        }
-
-        $blog->save();
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Blog updated successfully!'
-        ]);
     }
 
     public function show($id)
     {
         $blog = Blog::find($id);
-        if (!$blog) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Blog not found'
-            ]);
-        }
-
-        return response()->json([
-            'status' => true,
-            'data' => $blog
-        ]);
-    }
-
-    public function destroy($id)
-    {
-        $blog = Blog::find($id);
-        if (!$blog) {
+        if ($blog === null) {
             return response()->json([
                 'status' => false,
                 'message' => 'Blog not found!'
             ]);
         }
-
-        if ($blog->image_public_id) {
-            Cloudinary::destroy($blog->image_public_id);
-        }
-
-        $blog->delete();
-
         return response()->json([
             'status' => true,
-            'message' => 'Blog deleted successfully!'
+            'data' => $blog,
         ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        try {
+            $blog = Blog::find($id);
+
+            if (!$blog) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Blog not found!',
+                ]);
+            }
+
+            $request->merge([
+                'slug' => Str::slug($request->slug ?? $request->title ?? '')
+            ]);
+
+            $validator = Validator::make($request->all(), [
+                'title' => 'required',
+                'slug' => 'required|unique:blogs,slug,' . $id,
+                'short_desc' => 'nullable|string',
+                'content' => 'required',
+                'status' => 'required|boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false,
+                    'errors' => $validator->errors()
+                ]);
+            }
+
+            $blog->title = $request->title;
+            $blog->slug = $request->slug;
+            $blog->short_desc = $request->short_desc;
+            $blog->content = $request->content;
+            $blog->status = $request->status;
+
+            // Replace image if new image info is provided
+            if ($request->filled('image') && $request->filled('image_public_id')) {
+                // Delete old image from Cloudinary safely
+                if (!empty($blog->image_public_id) && is_string($blog->image_public_id)) {
+                    try {
+                        Cloudinary::destroy($blog->image_public_id);
+                    } catch (\Exception $ex) {
+                        Log::error("Cloudinary deletion error on blog update: " . $ex->getMessage());
+                    }
+                }
+
+                $blog->image = $request->image;
+                $blog->image_public_id = $request->image_public_id;
+            }
+
+            $blog->save();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Blog updated successfully!',
+                'data' => $blog,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Blog Update Error: " . $e->getMessage());
+            return response()->json([
+                'status' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], 500);
+        }
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $blog = Blog::find($id);
+
+            if (!$blog) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Blog not found!'
+                ], 404);
+            }
+
+            if ($blog->image_public_id) {
+                try {
+                    Cloudinary::destroy($blog->image_public_id);
+                } catch (\Exception $e) {
+                    Log::error("Cloudinary deletion error on blog destroy: " . $e->getMessage());
+                }
+            }
+
+            $blog->delete();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Blog deleted successfully!'
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Blog Delete Error: " . $e->getMessage());
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Server error: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

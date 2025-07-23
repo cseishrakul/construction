@@ -13,12 +13,16 @@ export default function EditBlog() {
 
   const [content, setContent] = useState("");
   const [blog, setBlog] = useState({});
-  const [imageId, setImageId] = useState(null);
+  const [imageUrl, setImageUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const config = useMemo(() => ({
-    readonly: false,
-    placeholder: "Write blog content...",
-  }), []);
+  const config = useMemo(
+    () => ({
+      readonly: false,
+      placeholder: "Write blog content...",
+    }),
+    []
+  );
 
   const {
     register,
@@ -33,6 +37,7 @@ export default function EditBlog() {
       const result = await res.json();
       setContent(result.data.content);
       setBlog(result.data);
+      setImageUrl(result.data.image_url || null); // fallback
       return {
         title: result.data.title,
         slug: result.data.slug,
@@ -43,20 +48,31 @@ export default function EditBlog() {
   });
 
   const handleFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
     const formData = new FormData();
-    formData.append("image", e.target.files[0]);
+    formData.append("file", file);
+    formData.append("upload_preset", "react_unsigned");
+    formData.append("cloud_name", "dwelnewv8");
+    try {
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dwelnewv8/image/upload",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
-    const res = await fetch(apiurl + "temp-images", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token()}` },
-      body: formData,
-    });
-
-    const result = await res.json();
-    if (result.status) {
-      setImageId(result.data.id);
-    } else {
-      toast.error("Image upload failed.");
+      const result = await res.json();
+      if (result.secure_url) {
+        setImageUrl(result.secure_url);
+        toast.success("Image uploaded successfully!");
+      } else {
+        toast.error("Image upload failed.");
+      }
+    } catch (error) {
+      toast.error("Error uploading image.");
     }
   };
 
@@ -64,10 +80,11 @@ export default function EditBlog() {
     const payload = {
       ...data,
       content,
-      imageId: imageId || blog.image_id, // Use new or existing
+      image: imageUrl || blog.image_url,
     };
 
     try {
+      setLoading(true);
       const res = await fetch(apiurl + "blogs/" + id, {
         method: "PUT",
         headers: {
@@ -86,6 +103,8 @@ export default function EditBlog() {
       }
     } catch (error) {
       toast.error("Something went wrong.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -161,14 +180,21 @@ export default function EditBlog() {
                 className="form-control"
                 onChange={handleFile}
               />
-              {blog.image && (
+              {imageUrl ? (
                 <img
-                  src={fileurl + "uploads/blogs/small/" + blog.image}
+                  src={imageUrl}
                   alt="preview"
                   className="my-2 rounded shadow-md max-w-full h-auto"
                   style={{ maxHeight: "200px" }}
                 />
-              )}
+              ) : blog.image ? (
+                <img
+                  src={blog.image}
+                  alt="preview"
+                  className="my-2 rounded shadow-md max-w-full h-auto"
+                  style={{ maxHeight: "200px" }}
+                />
+              ) : null}
             </div>
 
             <div className="mb-4">
@@ -187,8 +213,33 @@ export default function EditBlog() {
             </div>
 
             <div className="text-center">
-              <button className="bg-purple-500 text-white px-6 py-2 rounded hover:bg-purple-600 transition">
-                Update Blog
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-purple-500 text-white px-6 py-2 rounded hover:bg-purple-600 transition flex items-center justify-center gap-2"
+              >
+                {loading && (
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="white"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="white"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+                )}
+                {loading ? "Updating..." : "Update Blog"}
               </button>
             </div>
           </form>

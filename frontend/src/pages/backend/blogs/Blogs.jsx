@@ -4,6 +4,7 @@ import { apiurl, token } from "../../../components/frontend/Http";
 import { Link } from "react-router-dom";
 import { FaEdit, FaTrash, FaEye } from "react-icons/fa";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 
 const Blogs = () => {
   const [blogs, setBlogs] = useState([]);
@@ -24,7 +25,18 @@ const Blogs = () => {
   };
 
   const deleteBlog = async (id) => {
-    if (confirm("Are you sure you want to delete?")) {
+  const result = await Swal.fire({
+    title: "Are you sure?",
+    text: "You won't be able to revert this!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#3085d6",
+    cancelButtonColor: "#d33",
+    confirmButtonText: "Yes, delete it!",
+  });
+
+  if (result.isConfirmed) {
+    try {
       const res = await fetch(apiurl + "blogs/" + id, {
         method: "DELETE",
         headers: {
@@ -33,15 +45,19 @@ const Blogs = () => {
           Authorization: `Bearer ${token()}`,
         },
       });
-      const result = await res.json();
-      if (result.status === true) {
-        setBlogs(blogs.filter((blog) => blog.id !== id));
-        toast.success(result.message);
+      const data = await res.json();
+
+      if (data.status === true) {
+        setBlogs((prev) => prev.filter((blog) => blog.id !== id));
+        Swal.fire("Deleted!", data.message, "success");
       } else {
-        toast.error(result.message);
+        Swal.fire("Error!", data.message, "error");
       }
+    } catch (error) {
+      Swal.fire("Failed!", "Something went wrong.", "error");
     }
-  };
+  }
+};
 
   useEffect(() => {
     fetchBlogs();
@@ -92,11 +108,7 @@ const Blogs = () => {
                   <tr key={blog.id}>
                     <td className="py-2 px-4 border">
                       <img
-                        src={
-                          blog.image
-                            ? `https://construction-aqri.onrender.com/uploads/blogs/small/${blog.image}`
-                            : "https://via.placeholder.com/100x60.png?text=No+Image"
-                        }
+                        src={blog.image}
                         alt={blog.title}
                         className="w-20 h-14 object-cover mx-auto rounded"
                       />
@@ -152,11 +164,7 @@ const Blogs = () => {
                   {selectedBlog.title}
                 </h2>
                 <img
-                  src={
-                    selectedBlog.image
-                      ? `https://construction-xi-six.vercel.app/uploads/blogs/large/${selectedBlog.image}`
-                      : "https://via.placeholder.com/400x200.png?text=No+Image"
-                  }
+                  src={selectedBlog.image}
                   alt={selectedBlog.title}
                   className="w-full h-64 object-cover rounded mb-4"
                 />
