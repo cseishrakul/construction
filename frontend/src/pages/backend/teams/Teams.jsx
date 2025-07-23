@@ -145,10 +145,7 @@ const Teams = () => {
                 </h2>
                 <img
                   src={
-                    selectedTeam.image
-                      ? `https://construction-aqri.onrender.com/uploads/teams/large/${selectedTeam.image}`
-                      : "https://via.placeholder.com/300x200.png?text=No+Image"
-                  }
+                    selectedTeam.image}
                   alt={selectedTeam.name}
                   className="w-full h-64 object-cover rounded mb-4"
                 />

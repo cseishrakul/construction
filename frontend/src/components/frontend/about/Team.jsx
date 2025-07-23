@@ -45,7 +45,7 @@ const Team = () => {
             <div className="col-md-3 mb-4" key={member.id}>
               <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 h-full">
                 <img
-                  src={`https://construction-aqri.onrender.com/uploads/teams/small/${member.image}`}
+                  src={member.image}
                   alt={member.name}
                   className="w-full h-52 object-cover"
                 />
@@ -60,21 +60,7 @@ const Team = () => {
           ))}
         </div>
 
-        {/* Job Post Section */}
-        <div className="mt-20 bg-white rounded-xl shadow-md p-8 text-center max-w-3xl mx-auto">
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">
-            Join Our Growing Team!
-          </h3>
-          <p className="text-gray-600 mb-4">
-            We're hiring experienced site engineers, project managers, and civil workers. Be a part
-            of our mission to build better, smarter, and safer infrastructure.
-          </p>
-          <Link to="/careers">
-            <button className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-md shadow-md transition duration-200">
-              View Job Openings
-            </button>
-          </Link>
-        </div>
+       
       </div>
     </section>
   );
