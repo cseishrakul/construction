@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import heroImg from "../../assets/about-us.jpg";
 import Hero from "../../components/frontend/Hero";
 import { useForm } from "react-hook-form";
@@ -6,29 +6,37 @@ import { apiurl } from "../../components/frontend/Http";
 import { toast } from "react-toastify";
 
 const ContactUs = () => {
+  const [isLoading, setIsLoading] = useState(false);
   const {
     register,
     handleSubmit,
-    watch,
     reset,
     formState: { errors },
   } = useForm();
 
   const onSubmit = async (data) => {
-    const res = await fetch(apiurl + "contact-now", {
-      method: "POST",
-      headers: {
-        "Content-type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
-    const result = await res.json();
+    setIsLoading(true);
+    try {
+      const res = await fetch(apiurl + "contact-now", {
+        method: "POST",
+        headers: {
+          "Content-type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
 
-    if (result.status == true) {
-      toast.success(result.message);
-      reset();
-    } else {
-      toast.error(result.message);
+      if (result.status === true) {
+        toast.success(result.message);
+        reset();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Something went wrong");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -50,13 +58,13 @@ const ContactUs = () => {
                   Contact Info
                 </h3>
                 <p className="text-sm text-gray-700 mb-2">
-                  <strong>Phone:</strong> +880 1234 567890
+                  <strong>Phone:</strong> +880 1734 567890
                 </p>
                 <p className="text-sm text-gray-700 mb-2">
-                  <strong>Email:</strong> contact@yourcompany.com
+                  <strong>Email:</strong> contact@buildCraft.com
                 </p>
                 <p className="text-sm text-gray-700">
-                  <strong>Address:</strong> 123 Street, Dhaka, Bangladesh
+                  <strong>Address:</strong> Sylhet, Bangladesh
                 </p>
               </div>
             </div>
@@ -159,12 +167,12 @@ const ContactUs = () => {
                       </label>
                       <textarea
                         {...register("message", {
-                          required: "The message number is required",
+                          required: "The message is required",
                         })}
                         rows="4"
                         placeholder="Your message..."
                         className={`w-full border border-gray-300 rounded-md p-2 form-control ${
-                          errors.phone ? "is-invalid" : ""
+                          errors.message ? "is-invalid" : ""
                         }`}
                       ></textarea>
                       {errors.message && (
@@ -174,11 +182,24 @@ const ContactUs = () => {
                       )}
                     </div>
                   </div>
+
                   <button
                     type="submit"
                     className="bg-purple-600 text-white py-2 px-6 !rounded-md hover:bg-purple-700 transition"
+                    disabled={isLoading}
                   >
-                    Send Message
+                    {isLoading ? (
+                      <>
+                        <span
+                          className="spinner-border spinner-border-sm me-2"
+                          role="status"
+                          aria-hidden="true"
+                        ></span>
+                        Sending...
+                      </>
+                    ) : (
+                      "Send Message"
+                    )}
                   </button>
                 </form>
               </div>

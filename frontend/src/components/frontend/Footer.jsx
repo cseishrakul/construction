@@ -1,8 +1,6 @@
-import React from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { FaPhone, FaEnvelope, FaMapMarkerAlt } from "react-icons/fa";
 import logo from "../../assets/logo.jpg";
-
 const Footer = () => {
   const location = useLocation();
 
@@ -28,7 +26,6 @@ const Footer = () => {
             </p>
           </div>
 
-          {/* Column 2: Quick Links */}
           <div className="w-full sm:w-1/2 lg:w-1/4 px-3 mb-8 md:mb-0">
             <h3 className="!text-purple-500 text-xl font-bold mb-3">
               Quick Links
@@ -52,25 +49,14 @@ const Footer = () => {
               ))}
             </ul>
           </div>
-
-          {/* Column 3: Services */}
           <div className="w-full sm:w-1/2 lg:w-1/4 px-3 mb-8 md:mb-0">
             <h3 className="!text-purple-500 text-xl font-bold mb-3">
-              Our Services
+              Working Hours
             </h3>
-            <ul className="space-y-2">
-              {Array(5)
-                .fill("Specialty Construction")
-                .map((service, index) => (
-                  <li key={index}>
-                    <Link
-                      to=""
-                      className="text-white hover:text-purple-400 no-underline text-sm"
-                    >
-                      {service}
-                    </Link>
-                  </li>
-                ))}
+            <ul className="text-sm text-white space-y-2">
+              <li>Mon - Fri: 9:00 AM - 6:00 PM</li>
+              <li>Saturday: 10:00 AM - 4:00 PM</li>
+              <li>Sunday: Closed</li>
             </ul>
           </div>
 
@@ -82,15 +68,15 @@ const Footer = () => {
             <ul className="space-y-3 text-sm text-white">
               <li className="flex items-center gap-2">
                 <FaPhone className="text-purple-400" />
-                <span>+1 (123) 456-7890</span>
+                <span>+880 1734 567890</span>
               </li>
               <li className="flex items-center gap-2">
                 <FaEnvelope className="text-purple-400" />
-                <span>info@construction.com</span>
+                <span>contact@buildCraft.com</span>
               </li>
               <li className="flex items-center gap-2">
                 <FaMapMarkerAlt className="text-purple-400" />
-                <span>123 Main Street, NY 10001</span>
+                <span>Sylhet, Bangladesh</span>
               </li>
             </ul>
           </div>
