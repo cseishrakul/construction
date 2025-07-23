@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Service, Project, Blog, Team};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class DashboardController extends Controller
 {
@@ -39,9 +39,26 @@ class DashboardController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
+            'old_password' => 'nullable|string|min:6',
+            'password' => 'nullable|string|min:6|confirmed',
         ]);
 
-        $user->update($request->only(['name', 'email']));
+        // If old_password and new password are provided, attempt password change
+        if ($request->filled('old_password') && $request->filled('password')) {
+            if (!Hash::check($request->old_password, $user->password)) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Old password is incorrect.',
+                ], 422);
+            }
+
+            $user->password = Hash::make($request->password);
+        }
+
+        // Always update name and email
+        $user->name = $request->name;
+        $user->email = $request->email;
+        $user->save();
 
         return response()->json([
             'status' => true,
