@@ -4,6 +4,7 @@ import { apiurl, token } from "../../../components/frontend/Http";
 import { Link } from "react-router-dom";
 import { FaEdit, FaTrash, FaEye } from "react-icons/fa";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 
 const Projects = () => {
   const [projects, setProjects] = useState([]);
@@ -24,23 +25,37 @@ const Projects = () => {
   };
 
   const deleteProject = async (id) => {
-    if (confirm("Are you sure you want to delete?")) {
-      const res = await fetch(apiurl + "projects/" + id, {
-        method: "DELETE",
-        headers: {
-          "Content-type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-      });
-      const result = await res.json();
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+    });
 
-      if (result.status === true) {
-        const newProjects = projects.filter((project) => project.id !== id);
-        setProjects(newProjects);
-        toast.success(result.message);
-      } else {
-        toast.error(result.message);
+    if (result.isConfirmed) {
+      try {
+        const res = await fetch(apiurl + "projects/" + id, {
+          method: "DELETE",
+          headers: {
+            "Content-type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token()}`,
+          },
+        });
+        const data = await res.json();
+
+        if (data.status === true) {
+          setProjects((prev) => prev.filter((project) => project.id !== id));
+          toast.success(data.message);
+          Swal.fire("Deleted!", "Your project has been deleted.", "success");
+        } else {
+          toast.error(data.message);
+        }
+      } catch (error) {
+        toast.error("Something went wrong!");
       }
     }
   };
