@@ -209,7 +209,7 @@ const Editproject = ({ placeholder }) => {
                   />
                 ) : project.image ? (
                   <img
-                    src={fileurl + "uploads/projects/small/" + project.image}
+                    src={project.image}
                     alt="preview"
                     className="my-2 rounded shadow-md max-w-full h-auto"
                     style={{ maxHeight: "200px" }}
