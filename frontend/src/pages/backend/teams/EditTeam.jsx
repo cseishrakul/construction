@@ -1,17 +1,18 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import Sidebar from "../../../components/backend/dashboard/Sidebar";
-import { apiurl, fileurl, token } from "../../../components/frontend/Http";
+import { apiurl, token } from "../../../components/frontend/Http";
 
 export default function EditTeam() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const editor = useRef(null);
 
   const [team, setTeam] = useState({});
-  const [imageId, setImageId] = useState(null);
+  const [image, setImage] = useState(null);
+  const [imagePublicId, setImagePublicId] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const {
     register,
@@ -36,30 +37,41 @@ export default function EditTeam() {
   });
 
   const handleFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
     const formData = new FormData();
-    formData.append("image", e.target.files[0]);
+    formData.append("file", file);
+    formData.append("upload_preset", "react_unsigned"); // your preset
+    formData.append("cloud_name", "dwelnewv8");         // your Cloudinary name
 
-    const res = await fetch(apiurl + "temp-images", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token()}` },
-      body: formData,
-    });
-
-    const result = await res.json();
-    if (result.status) {
-      setImageId(result.data.id);
-    } else {
-      toast.error("Image upload failed.");
+    try {
+      const res = await fetch("https://api.cloudinary.com/v1_1/dwelnewv8/image/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await res.json();
+      if (result.secure_url && result.public_id) {
+        setImage(result.secure_url);
+        setImagePublicId(result.public_id);
+        toast.success("Image uploaded!");
+      } else {
+        toast.error("Upload failed.");
+      }
+    } catch (err) {
+      toast.error("Upload error");
     }
   };
 
   const onSubmit = async (data) => {
     const payload = {
       ...data,
-      imageId: imageId || team.image_id, // keep old or new
+      image: image || team.image,
+      image_public_id: imagePublicId || team.image_public_id,
     };
 
     try {
+      setLoading(true);
       const res = await fetch(apiurl + "teams/" + id, {
         method: "PUT",
         headers: {
@@ -71,13 +83,15 @@ export default function EditTeam() {
 
       const result = await res.json();
       if (result.status) {
-        toast.success("Team member updated successfully!");
+        toast.success("Team member updated!");
         navigate("/admin/teams");
       } else {
         toast.error(result.message || "Update failed.");
       }
-    } catch (error) {
+    } catch {
       toast.error("Something went wrong.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -132,13 +146,12 @@ export default function EditTeam() {
               />
               {errors.email && <p className="invalid-feedback">{errors.email.message}</p>}
             </div>
+
             <div className="mb-4">
               <label>Role</label>
               <input
                 type="text"
-                {...register("role", {
-                  required: "Role is required",
-                })}
+                {...register("role", { required: "Role is required" })}
                 className={`form-control ${errors.role && "is-invalid"}`}
               />
               {errors.role && <p className="invalid-feedback">{errors.role.message}</p>}
@@ -152,9 +165,9 @@ export default function EditTeam() {
                 className="form-control"
                 onChange={handleFile}
               />
-              {team.image && (
+              {(image || team.image) && (
                 <img
-                  src={fileurl + "uploads/teams/small/" + team.image}
+                  src={image || team.image}
                   alt="preview"
                   className="my-2 rounded shadow-md max-w-full h-auto"
                   style={{ maxHeight: "200px" }}
@@ -176,8 +189,29 @@ export default function EditTeam() {
             </div>
 
             <div className="text-center">
-              <button className="bg-purple-500 text-white px-6 py-2 rounded hover:bg-purple-600 transition">
-                Update Team Member
+              <button
+                disabled={loading}
+                className="bg-purple-500 text-white px-6 py-2 rounded hover:bg-purple-600 transition flex items-center justify-center gap-2"
+              >
+                {loading && (
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="white"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="white"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+                )}
+                {loading ? "Updating..." : "Update Team Member"}
               </button>
             </div>
           </form>

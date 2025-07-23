@@ -13,12 +13,19 @@ export default function CreateTeam() {
     formState: { errors },
   } = useForm();
 
-  const [imageId, setImageId] = useState(null);
+  const [image, setImage] = useState(null);
+  const [imagePublicId, setImagePublicId] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const onSubmit = async (data) => {
-    const payload = { ...data, imageId };
+    const payload = {
+      ...data,
+      image,
+      image_public_id: imagePublicId,
+    };
 
     try {
+      setLoading(true);
       const res = await fetch(apiurl + "teams", {
         method: "POST",
         headers: {
@@ -33,28 +40,41 @@ export default function CreateTeam() {
         toast.success("Team member created successfully!");
         navigate("/admin/teams");
       } else {
-        toast.error(result.message);
+        toast.error(result.message || "Creation failed.");
       }
     } catch (err) {
       toast.error("Something went wrong.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
     const formData = new FormData();
-    formData.append("image", e.target.files[0]);
+    formData.append("file", file);
+    formData.append("upload_preset", "react_unsigned"); // your cloudinary preset
+    formData.append("cloud_name", "dwelnewv8");         // your cloudinary cloud name
 
     try {
-      const res = await fetch(apiurl + "temp-images", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token()}` },
-        body: formData,
-      });
-
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dwelnewv8/image/upload",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
       const result = await res.json();
-      if (result.status) setImageId(result.data.id);
-      else toast.error("Image upload failed");
-    } catch {
+      if (result.secure_url && result.public_id) {
+        setImage(result.secure_url);
+        setImagePublicId(result.public_id);
+        toast.success("Image uploaded to Cloudinary!");
+      } else {
+        toast.error("Image upload failed.");
+      }
+    } catch (err) {
       toast.error("Upload error");
     }
   };
@@ -141,6 +161,14 @@ export default function CreateTeam() {
                 accept="image/*"
                 onChange={handleFile}
               />
+              {image && (
+                <img
+                  src={image}
+                  alt="preview"
+                  className="mt-2 rounded shadow max-w-full h-auto"
+                  style={{ maxHeight: "200px" }}
+                />
+              )}
             </div>
 
             <div className="mb-3">
@@ -151,8 +179,22 @@ export default function CreateTeam() {
               </select>
             </div>
 
-            <button type="submit" className="btn btn-primary">
-              Submit
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary flex items-center gap-2"
+            >
+              {loading && (
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" />
+                  <path
+                    className="opacity-75"
+                    fill="white"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                  />
+                </svg>
+              )}
+              {loading ? "Creating..." : "Submit"}
             </button>
           </form>
         </div>

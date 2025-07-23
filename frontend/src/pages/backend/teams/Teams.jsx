@@ -66,7 +66,9 @@ const Teams = () => {
 
         <div className="flex-grow bg-white shadow rounded-lg p-6 min-h-[450px]">
           <div className="flex items-center justify-between mb-4">
-            <h4 className="text-2xl font-semibold text-gray-800">Team Members</h4>
+            <h4 className="text-2xl font-semibold text-gray-800">
+              Team Members
+            </h4>
             <Link to="/admin/teams/create">
               <button className="bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-lg text-white">
                 Add Member
@@ -94,11 +96,7 @@ const Teams = () => {
                     <td className="py-2 px-4 border">{member.id}</td>
                     <td className="py-2 px-4 border">
                       <img
-                        src={
-                          member.image
-                            ? `https://construction-aqri.onrender.com/uploads/teams/small/${member.image}`
-                            : "https://via.placeholder.com/100x100.png?text=No+Image"
-                        }
+                        src={member.image}
                         alt={member.name}
                         className="w-16 h-16 object-cover rounded-full mx-auto"
                       />
@@ -154,9 +152,15 @@ const Teams = () => {
                   alt={selectedTeam.name}
                   className="w-full h-64 object-cover rounded mb-4"
                 />
-                <p><strong>Phone:</strong> {selectedTeam.phone}</p>
-                <p><strong>Email:</strong> {selectedTeam.email}</p>
-                <p><strong>Role:</strong> {selectedTeam.role}</p>
+                <p>
+                  <strong>Phone:</strong> {selectedTeam.phone}
+                </p>
+                <p>
+                  <strong>Email:</strong> {selectedTeam.email}
+                </p>
+                <p>
+                  <strong>Role:</strong> {selectedTeam.role}
+                </p>
               </div>
             </div>
           )}
