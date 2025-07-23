@@ -1,10 +1,16 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { Link, useNavigate } from "react-router-dom";
+
 import { toast } from "react-toastify";
 import { token } from "../../../components/frontend/Http";
 import Sidebar from "../../../components/backend/dashboard/Sidebar";
+import { FaArrowLeft } from "react-icons/fa";
 
 const CreateServices = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     title: "",
     slug: "",
@@ -66,14 +72,15 @@ const CreateServices = () => {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-
+    setLoading(true);
     const submitData = new FormData();
     Object.keys(formData).forEach((key) => {
       submitData.append(key, formData[key]);
     });
 
     if (imageData?.url) submitData.append("image", imageData.url);
-    if (imageData?.public_id) submitData.append("image_public_id", imageData.public_id);
+    if (imageData?.public_id)
+      submitData.append("image_public_id", imageData.public_id);
 
     try {
       const response = await axios.post(
@@ -108,85 +115,139 @@ const CreateServices = () => {
     } catch (error) {
       console.error("Error:", error);
       toast.error("Something went wrong!");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex bg-gray-100">
-      <Sidebar />
-      <div className="flex-grow p-8">
-        <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow">
-          <h2 className="text-2xl font-bold mb-6">Create New Service</h2>
+    <main className="p-5">
+      <div className="flex gap-6"></div>
+      <div className="min-h-screen flex bg-gray-100">
+        <Sidebar />
 
-          <form onSubmit={onSubmit} className="space-y-4">
-            {[
-              ["title", "Title"],
-              ["slug", "Slug"],
-              ["short_desc", "Short Description"],
-              ["price", "Price"],
-              ["details", "Details"],
-              ["budget", "Budget"],
-              ["timeline", "Timeline"],
-            ].map(([key, label]) => (
-              <div key={key}>
-                <label htmlFor={key} className="block text-sm font-medium text-gray-700">
-                  {label}
+        <div className="flex-grow">
+          <div className="max-w-full mx-auto bg-white p-10 rounded-2xl shadow-sm space-y-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-2xl font-semibold text-gray-800">
+                Create Services
+              </h4>
+              <Link to="/admin/services">
+                <button className="bg-purple-500 hover:bg-purple-600 px-4 py-2 !rounded-lg text-white transition duration-200">
+                  Back
+                </button>
+              </Link>
+            </div>
+
+            <hr />
+
+            <form onSubmit={onSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {[
+                  ["title", "Title"],
+                  ["slug", "Slug"],
+                  ["short_desc", "Short Description"],
+                  ["price", "Price"],
+                  ["details", "Details"],
+                  ["budget", "Budget"],
+                  ["timeline", "Timeline"],
+                ].map(([key, label]) => (
+                  <div key={key}>
+                    <label
+                      htmlFor={key}
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      {label}
+                    </label>
+                    <input
+                      type="text"
+                      name={key}
+                      value={formData[key]}
+                      onChange={handleChange}
+                      placeholder={label}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                ))}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Upload Image
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-blue-600 file:text-white file:rounded-lg hover:file:bg-blue-700"
+                  />
+                  {uploading && (
+                    <p className="text-sm text-blue-500 mt-2">Uploading...</p>
+                  )}
+                  {imageData?.url && (
+                    <img
+                      src={imageData.url}
+                      alt="Uploaded"
+                      className="w-40 h-40 mt-4 object-cover rounded-lg border"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="content"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Content
                 </label>
-                <input
-                  type="text"
-                  name={key}
-                  value={formData[key]}
+                <textarea
+                  name="content"
+                  value={formData.content}
                   onChange={handleChange}
-                  placeholder={label}
-                  className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring focus:border-blue-500"
+                  placeholder="Content"
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-            ))}
-
-            <div>
-              <label htmlFor="content" className="block text-sm font-medium text-gray-700">
-                Content
-              </label>
-              <textarea
-                name="content"
-                value={formData.content}
-                onChange={handleChange}
-                placeholder="Content"
-                rows={4}
-                className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Upload Image
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-blue-600 file:text-white file:rounded hover:file:bg-blue-700"
-              />
-              {uploading && <p className="text-sm text-blue-500 mt-1">Uploading...</p>}
-              {imageData?.url && (
-                <img
-                  src={imageData.url}
-                  alt="Uploaded"
-                  className="w-40 h-40 mt-2 object-cover rounded border"
-                />
-              )}
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition duration-200"
-            >
-              Submit Service
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full flex justify-center items-center gap-2 bg-purple-500 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-md transition ${
+                  loading ? "opacity-70 cursor-not-allowed" : ""
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
+                    </svg>
+                    Creating...
+                  </>
+                ) : (
+                  "Submit Service"
+                )}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 

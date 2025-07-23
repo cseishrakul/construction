@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { apiurl, token } from "../../../components/frontend/Http";
 import { FaTrash, FaEdit, FaEye } from "react-icons/fa";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 
 const Services = () => {
   const [services, setServices] = useState([]);
@@ -24,23 +25,39 @@ const Services = () => {
   };
 
   const deleteService = async (id) => {
-    if (confirm("Are you sure you want to delete?")) {
-      const res = await fetch(apiurl + "services/" + id, {
-        method: "DELETE",
-        headers: {
-          "Content-type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-      });
-      const result = await res.json();
+    const confirmResult = await Swal.fire({
+      title: "Are you sure?",
+      text: "Service will be deleted permanently!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it!",
+    });
 
-      if (result.status === true) {
-        const newServices = services.filter((service) => service.id != id);
-        setServices(newServices);
-        toast.success(result.message);
-      } else {
-        toast.error(result.message);
+    if (confirmResult.isConfirmed) {
+      try {
+        const res = await fetch(apiurl + "services/" + id, {
+          method: "DELETE",
+          headers: {
+            "Content-type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token()}`,
+          },
+        });
+
+        const result = await res.json();
+
+        if (result.status === true) {
+          const newServices = services.filter((service) => service.id !== id);
+          setServices(newServices);
+
+          Swal.fire("Deleted!", result.message, "success");
+        } else {
+          Swal.fire("Error!", result.message, "error");
+        }
+      } catch (error) {
+        Swal.fire("Error!", "Something went wrong!", "error");
       }
     }
   };
