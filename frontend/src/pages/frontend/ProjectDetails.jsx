@@ -52,10 +52,7 @@ const ProjectDetails = () => {
         <div className="mb-10">
           <img
             src={
-              project.image
-                ? `https://construction-aqri.onrender.com/uploads/projects/large/${project.image}`
-                : "https://via.placeholder.com/600x300.png?text=No+Image"
-            }
+              project.image}
             alt={project.title}
             className="w-full h-64 object-contain rounded-xl"
           />

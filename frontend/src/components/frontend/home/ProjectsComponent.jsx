@@ -52,10 +52,7 @@ const ProjectsComponent = () => {
                   <div className="bg-white rounded-2xl shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg h-full flex flex-col">
                     <img
                       src={
-                        project.image
-                          ? `https://construction-aqri.onrender.com/uploads/projects/small/${project.image}`
-                          : "https://via.placeholder.com/400x200.png?text=No+Image"
-                      }
+                        project.image}
                       alt={project.title}
                       className="w-full h-52 object-cover bg-white rounded-t-2xl"
                     />
