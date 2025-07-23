@@ -1,64 +1,62 @@
-import React, { useState, useRef, useMemo } from "react";
-import JoditEditor from "jodit-react";
-import Sidebar from "../../../components/backend/dashboard/Sidebar";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import { apiurl, token } from "../../../components/frontend/Http";
 import { toast } from "react-toastify";
+import { Link, useNavigate } from "react-router-dom";
+import JoditEditor from "jodit-react";
+import { apiurl, token } from "../../../components/frontend/Http";
+import Sidebar from "../../../components/backend/dashboard/Sidebar";
 
-const CreateProject = ({ placeholder }) => {
-  const editor = useRef(null);
+const CreateProject = () => {
+  const navigate = useNavigate();
   const [content, setContent] = useState("");
-  const [isDisable, setIsDisable] = useState(false);
-  const [imageId, setImageId] = useState(null);
-
-  const config = useMemo(
-    () => ({
-      readonly: false,
-      placeholder: placeholder || "Content",
-    }),
-    [placeholder]
-  );
+  const [imageData, setImageData] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm();
 
-  const navigate = useNavigate();
-
-  const handleFile = async (e) => {
-    const formData = new FormData();
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
-    formData.append("image", file);
+    if (!file) return;
 
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "react_unsigned");
+
+    setUploading(true);
     try {
-      const res = await fetch(apiurl + "temp-images", {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        body: formData,
-      });
-
-      const result = await res.json();
-
-      if (!result.status) {
-        toast.error(result.errors?.image?.[0] || "Upload failed.");
-      } else {
-        setImageId(result.data.id);
-      }
-    } catch (error) {
-      toast.error("Image upload failed. Please try again.");
-      console.error("Upload error:", error);
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dwelnewv8/image/upload",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const data = await res.json();
+      setImageData({ url: data.secure_url, public_id: data.public_id });
+      toast.success("Image uploaded!");
+    } catch (err) {
+      toast.error("Image upload failed!");
+      console.error(err);
+    } finally {
+      setUploading(false);
     }
   };
 
-  const onSubmit = async (data) => {
-    const newData = { ...data, content: content, "imageId": imageId };
+  const onSubmit = async (formData) => {
+    const payload = {
+      ...formData,
+      content,
+      image: imageData?.url || null,
+      image_public_id: imageData?.public_id || null,
+    };
 
+    setLoading(true);
     try {
       const res = await fetch(apiurl + "projects", {
         method: "POST",
@@ -67,150 +65,174 @@ const CreateProject = ({ placeholder }) => {
           Accept: "application/json",
           Authorization: `Bearer ${token()}`,
         },
-        body: JSON.stringify(newData),
+        body: JSON.stringify(payload),
       });
 
       const result = await res.json();
-
-      if (result.status === true) {
-        toast.success(result.message);
+      if (result.status) {
+        toast.success("Project added successfully!");
+        reset();
+        setContent("");
+        setImageData(null);
         navigate("/admin/projects");
       } else {
-        toast.error(result.message || "Something went wrong.");
+        toast.error(result.message || "Failed to create project");
       }
     } catch (error) {
-      toast.error("Server error. Try again.");
+      toast.error("Something went wrong!");
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <main className="p-5">
-      <div className="flex gap-6">
-        <div className="w-64">
-          <Sidebar />
-        </div>
+      <div className="flex gap-6"></div>
+      <div className="min-h-screen flex bg-gray-100">
+        <Sidebar />
 
-        <div className="flex-grow bg-white shadow rounded-lg p-6 min-h-[450px]">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-2xl font-semibold text-gray-800">Create Project</h4>
-            <Link to="/admin/projects">
-              <button className="bg-purple-500 hover:bg-purple-600 px-4 py-2 !rounded-lg text-white transition duration-200">
-                Back
-              </button>
-            </Link>
-          </div>
-          <hr className="mb-4 border-gray-300" />
-
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="row">
-              <div className="col-md-6 mb-3">
-                <label>Title</label>
-                <input
-                  {...register("title", { required: "Title is required" })}
-                  type="text"
-                  className={`form-control ${errors.title ? "is-invalid" : ""}`}
-                />
-                {errors.title && <p className="invalid-feedback">{errors.title.message}</p>}
-              </div>
-              <div className="col-md-6 mb-3">
-                <label>Slug</label>
-                <input
-                  {...register("slug", { required: "Slug is required" })}
-                  type="text"
-                  className={`form-control ${errors.slug ? "is-invalid" : ""}`}
-                />
-                {errors.slug && <p className="invalid-feedback">{errors.slug.message}</p>}
-              </div>
+        <div className="flex-grow">
+          <div className="max-w-full mx-auto bg-white p-10 rounded-2xl shadow-sm space-y-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-2xl font-semibold text-gray-800">
+                Create Project
+              </h4>
+              <Link to="/admin/projects">
+                <button className="bg-purple-500 hover:bg-purple-600 px-4 py-2 !rounded-lg text-white transition duration-200">
+                  Back
+                </button>
+              </Link>
             </div>
 
-            <div className="mb-3">
-              <label>Short Description</label>
-              <textarea
-                {...register("short_desc", { required: "Short description is required" })}
-                rows={4}
-                className={`form-control ${errors.short_desc ? "is-invalid" : ""}`}
-              />
-              {errors.short_desc && <p className="invalid-feedback">{errors.short_desc.message}</p>}
-            </div>
+            <hr />
 
-            <div className="mb-3">
-              <label>Content</label>
-              <JoditEditor
-                ref={editor}
-                value={content}
-                config={config}
-                tabIndex={1}
-                onBlur={(newContent) => setContent(newContent)}
-                onChange={() => {}}
-              />
-            </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {[
+                  ["title", "Title"],
+                  ["slug", "Slug"],
+                  ["short_desc", "Short Description"],
+                  ["construction_type", "Construction Type"],
+                  ["location", "Location"],
+                  ["sector","sector"]
+                ].map(([key, label]) => (
+                  <div key={key}>
+                    <label
+                      htmlFor={key}
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      {label}
+                    </label>
+                    <input
+                      type="text"
+                      {...register(key, { required: true })}
+                      placeholder={label}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {errors[key] && (
+                      <span className="text-red-500 text-sm">
+                        {label} is required
+                      </span>
+                    )}
+                  </div>
+                ))}
+                <div>
+                  <label className="block font-medium mb-1">Status</label>
+                  <select
+                    {...register("status", { required: true })}
+                    className="w-full border p-2 rounded border-gray-300"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>
+                      Select status
+                    </option>
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                  </select>
+                  {errors.status && (
+                    <span className="text-red-500 text-sm">
+                      Status is required
+                    </span>
+                  )}
+                </div>
 
-            <div className="row">
-              <div className="col-md-4 mb-3">
-                <label>Construction Type</label>
-                <input
-                  {...register("construction_type", { required: "Construction type is required" })}
-                  type="text"
-                  className={`form-control ${errors.construction_type ? "is-invalid" : ""}`}
-                />
-                {errors.construction_type && (
-                  <p className="invalid-feedback">{errors.construction_type.message}</p>
-                )}
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Upload Image
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-blue-600 file:text-white file:rounded-lg hover:file:bg-blue-700"
+                  />
+                  {uploading && (
+                    <p className="text-sm text-blue-500 mt-2">Uploading...</p>
+                  )}
+                  {imageData?.url && (
+                    <img
+                      src={imageData.url}
+                      alt="Uploaded"
+                      className="w-40 h-40 mt-4 object-cover rounded-lg border"
+                    />
+                  )}
+                </div>
               </div>
-              <div className="col-md-4 mb-3">
-                <label>Sector</label>
-                <input
-                  {...register("sector", { required: "Sector is required" })}
-                  type="text"
-                  className={`form-control ${errors.sector ? "is-invalid" : ""}`}
-                />
-                {errors.sector && (
-                  <p className="invalid-feedback">{errors.sector.message}</p>
-                )}
-              </div>
-              <div className="col-md-4 mb-3">
-                <label>Location</label>
-                <input
-                  {...register("location", { required: "Location is required" })}
-                  type="text"
-                  className={`form-control ${errors.location ? "is-invalid" : ""}`}
-                />
-                {errors.location && (
-                  <p className="invalid-feedback">{errors.location.message}</p>
-                )}
-              </div>
-            </div>
 
-            <div className="row">
-              <div className="col-md-6 mb-3">
-                <label>Image</label>
-                <input type="file" onChange={handleFile} className="form-control" />
-              </div>
-              <div className="col-md-6 mb-3">
-                <label>Status</label>
-                <select
-                  {...register("status", { required: "Status is required" })}
-                  className={`form-control ${errors.status ? "is-invalid" : ""}`}
+              {/* Jodit Content Editor */}
+              <div>
+                <label
+                  htmlFor="content"
+                  className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  <option value="">Select Status</option>
-                  <option value="1">Active</option>
-                  <option value="0">Inactive</option>
-                </select>
-                {errors.status && <p className="invalid-feedback">{errors.status.message}</p>}
+                  Content
+                </label>
+                <JoditEditor
+                  value={content}
+                  onChange={(newContent) => setContent(newContent)}
+                />
               </div>
-            </div>
 
-            <div className="text-right mt-4">
+              {/* Submit Button */}
               <button
                 type="submit"
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded shadow"
-                disabled={isDisable}
+                disabled={loading}
+                className={`w-full flex justify-center items-center gap-2 bg-purple-500 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-md transition ${
+                  loading ? "opacity-70 cursor-not-allowed" : ""
+                }`}
               >
-                Submit
+                {loading ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
+                    </svg>
+                    Creating...
+                  </>
+                ) : (
+                  "Submit Project"
+                )}
               </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </main>

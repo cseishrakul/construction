@@ -11,7 +11,7 @@ const Editproject = ({ placeholder }) => {
   const [content, setContent] = useState("");
   const [project, setProject] = useState("");
   const [isDisable, setIsDisable] = useState(false);
-  const [imageId, setImageId] = useState(null);
+  const [imageData, setImageData] = useState(null);
   const params = useParams();
   const navigate = useNavigate();
 
@@ -53,54 +53,64 @@ const Editproject = ({ placeholder }) => {
     },
   });
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "react_unsigned");
+
+    try {
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dwelnewv8/image/upload",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const data = await res.json();
+      setImageData({ url: data.secure_url, public_id: data.public_id });
+      toast.success("Image uploaded!");
+    } catch (err) {
+      toast.error("Image upload failed!");
+      console.error(err);
+    }
+  };
+
   const onSubmit = async (data) => {
     const newData = {
       ...data,
       content: content,
-      imageId: imageId || project.image_id,
+      image: imageData?.url || project.image || null,
+      image_public_id: imageData?.public_id || project.image_public_id || null,
     };
-    const res = await fetch(apiurl + "projects/" + params.id, {
-      method: "PUT",
-      headers: {
-        "Content-type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${token()}`,
-      },
-      body: JSON.stringify(newData),
-    });
-    const result = await res.json();
-    if (result.status === true) {
-      toast.success(result.message);
-      navigate("/admin/projects");
-    } else {
-      toast.error(result.message);
-    }
-  };
 
-  const handleFile = async (e) => {
-    const formData = new FormData();
-    const file = e.target.files[0];
-    formData.append("image", file);
-
+    setIsDisable(true);
     try {
-      const res = await fetch(apiurl + "temp-images", {
-        method: "POST",
+      const res = await fetch(apiurl + "projects/" + params.id, {
+        method: "PUT",
         headers: {
+          "Content-type": "application/json",
           Accept: "application/json",
           Authorization: `Bearer ${token()}`,
         },
-        body: formData,
+        body: JSON.stringify(newData),
       });
 
       const result = await res.json();
 
-      if (!result.status) {
-        toast.error(result.errors?.image?.[0] || "Upload failed.");
+      if (result.status === true) {
+        toast.success(result.message);
+        navigate("/admin/projects");
       } else {
-        setImageId(result.data.id);
+        toast.error(result.message || "Update failed");
       }
     } catch (error) {
-      toast.error("Image upload failed. Please try again.");
+      toast.error("Something went wrong!");
+      console.error(error);
+    } finally {
+      setIsDisable(false);
     }
   };
 
@@ -157,27 +167,15 @@ const Editproject = ({ placeholder }) => {
             <div className="row">
               <div className="col-md-4 mb-3">
                 <label>Construction Type</label>
-                <input
-                  {...register("construction_type")}
-                  type="text"
-                  className="form-control"
-                />
+                <input {...register("construction_type")} type="text" className="form-control" />
               </div>
               <div className="col-md-4 mb-3">
                 <label>Sector</label>
-                <input
-                  {...register("sector")}
-                  type="text"
-                  className="form-control"
-                />
+                <input {...register("sector")} type="text" className="form-control" />
               </div>
               <div className="col-md-4 mb-3">
                 <label>Location</label>
-                <input
-                  {...register("location")}
-                  type="text"
-                  className="form-control"
-                />
+                <input {...register("location")} type="text" className="form-control" />
               </div>
             </div>
 
@@ -197,18 +195,26 @@ const Editproject = ({ placeholder }) => {
               <div className="col-md-6 mb-3">
                 <label>Image</label>
                 <input
-                  onChange={handleFile}
                   type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
                   className="form-control"
                 />
-                {project.image && (
+                {imageData?.url ? (
+                  <img
+                    src={imageData.url}
+                    alt="preview"
+                    className="my-2 rounded shadow-md max-w-full h-auto"
+                    style={{ maxHeight: "200px" }}
+                  />
+                ) : project.image ? (
                   <img
                     src={fileurl + "uploads/projects/small/" + project.image}
                     alt="preview"
                     className="my-2 rounded shadow-md max-w-full h-auto"
                     style={{ maxHeight: "200px" }}
                   />
-                )}
+                ) : null}
               </div>
               <div className="col-md-6 mb-3">
                 <label>Status</label>
@@ -220,9 +226,7 @@ const Editproject = ({ placeholder }) => {
                   <option value="1">Active</option>
                   <option value="0">Inactive</option>
                 </select>
-                {errors.status && (
-                  <p className="invalid-feedback">{errors.status.message}</p>
-                )}
+                {errors.status && <p className="invalid-feedback">{errors.status.message}</p>}
               </div>
             </div>
 

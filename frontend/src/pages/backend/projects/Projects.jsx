@@ -96,11 +96,7 @@ const Projects = () => {
                     <tr key={project.id}>
                       <td className="py-2 px-4 border">
                         <img
-                          src={
-                            project.image
-                              ? `https://construction-aqri.onrender.com/uploads/projects/small/${project.image}`
-                              : "https://via.placeholder.com/100x60.png?text=No+Image"
-                          }
+                          src={project.image}
                           alt={project.title}
                           className="w-20 h-14 object-cover mx-auto rounded"
                         />
@@ -157,11 +153,7 @@ const Projects = () => {
                   {selectedProject.title}
                 </h2>
                 <img
-                  src={
-                    selectedProject.image
-                      ? `https://construction-xi-six.vercel.app/uploads/projects/small/${selectedProject.image}`
-                      : "https://via.placeholder.com/400x200.png?text=No+Image"
-                  }
+                  src={selectedProject.image}
                   alt={selectedProject.title}
                   className="w-full h-64 object-cover rounded mb-4"
                 />
@@ -181,7 +173,9 @@ const Projects = () => {
                   <strong>Status:</strong>{" "}
                   <span
                     className={`px-2 py-1 rounded text-white text-xs font-semibold ${
-                      selectedProject.status == 1 ? "bg-green-500" : "bg-red-500"
+                      selectedProject.status == 1
+                        ? "bg-green-500"
+                        : "bg-red-500"
                     }`}
                   >
                     {selectedProject.status == 1 ? "Active" : "Blocked"}
