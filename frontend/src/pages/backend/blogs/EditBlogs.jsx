@@ -4,7 +4,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import JoditEditor from "jodit-react";
 import Sidebar from "../../../components/backend/dashboard/Sidebar";
-import { apiurl, fileurl, token } from "../../../components/frontend/Http";
+import { apiurl, token } from "../../../components/frontend/Http";
 
 export default function EditBlog() {
   const { id } = useParams();
@@ -13,16 +13,13 @@ export default function EditBlog() {
 
   const [content, setContent] = useState("");
   const [blog, setBlog] = useState({});
-  const [imageUrl, setImageUrl] = useState(null);
+  const [imageData, setImageData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const config = useMemo(
-    () => ({
-      readonly: false,
-      placeholder: "Write blog content...",
-    }),
-    []
-  );
+  const config = useMemo(() => ({
+    readonly: false,
+    placeholder: "Write blog content...",
+  }), []);
 
   const {
     register,
@@ -37,7 +34,11 @@ export default function EditBlog() {
       const result = await res.json();
       setContent(result.data.content);
       setBlog(result.data);
-      setImageUrl(result.data.image_url || null); // fallback
+      setImageData({
+        url: result.data.image || null,
+        public_id: result.data.image_public_id || null,
+      });
+
       return {
         title: result.data.title,
         slug: result.data.slug,
@@ -47,14 +48,14 @@ export default function EditBlog() {
     },
   });
 
-  const handleFile = async (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     const formData = new FormData();
     formData.append("file", file);
     formData.append("upload_preset", "react_unsigned");
-    formData.append("cloud_name", "dwelnewv8");
+
     try {
       const res = await fetch(
         "https://api.cloudinary.com/v1_1/dwelnewv8/image/upload",
@@ -63,10 +64,10 @@ export default function EditBlog() {
           body: formData,
         }
       );
-
       const result = await res.json();
+
       if (result.secure_url) {
-        setImageUrl(result.secure_url);
+        setImageData({ url: result.secure_url, public_id: result.public_id });
         toast.success("Image uploaded successfully!");
       } else {
         toast.error("Image upload failed.");
@@ -80,7 +81,8 @@ export default function EditBlog() {
     const payload = {
       ...data,
       content,
-      image: imageUrl || blog.image_url,
+      image: imageData?.url || null,
+      image_public_id: imageData?.public_id || null,
     };
 
     try {
@@ -178,23 +180,16 @@ export default function EditBlog() {
                 type="file"
                 accept="image/*"
                 className="form-control"
-                onChange={handleFile}
+                onChange={handleImageUpload}
               />
-              {imageUrl ? (
+              {imageData?.url && (
                 <img
-                  src={imageUrl}
+                  src={imageData.url}
                   alt="preview"
                   className="my-2 rounded shadow-md max-w-full h-auto"
                   style={{ maxHeight: "200px" }}
                 />
-              ) : blog.image ? (
-                <img
-                  src={blog.image}
-                  alt="preview"
-                  className="my-2 rounded shadow-md max-w-full h-auto"
-                  style={{ maxHeight: "200px" }}
-                />
-              ) : null}
+              )}
             </div>
 
             <div className="mb-4">

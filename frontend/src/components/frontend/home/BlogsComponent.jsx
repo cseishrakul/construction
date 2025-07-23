@@ -45,11 +45,7 @@ const BlogsComponent = () => {
               <div className="col-md-4 mb-5" key={i}>
                 <div className="bg-white rounded-2xl shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg h-full flex flex-col">
                   <img
-                    src={
-                      blog.image
-                        ? `https://construction-aqri.onrender.com/uploads/blogs/small/${blog.image}`
-                        : "https://via.placeholder.com/400x200.png?text=No+Image"
-                    }
+                    src={blog.image}
                     alt={blog.title}
                     className="w-full h-52 object-cover bg-white rounded-t-2xl"
                   />

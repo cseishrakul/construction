@@ -1,37 +1,66 @@
-import React, { useRef, useState } from "react";
-import JoditEditor from "jodit-react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import { apiurl, token } from "../../../components/frontend/Http";
 import { toast } from "react-toastify";
-import Sidebar from "../../../components/backend/dashboard/Sidebar";
 import { Link, useNavigate } from "react-router-dom";
+import JoditEditor from "jodit-react";
+import { apiurl, token } from "../../../components/frontend/Http";
+import Sidebar from "../../../components/backend/dashboard/Sidebar";
 
-export default function CreateBlog() {
+const CreateBlog = () => {
   const navigate = useNavigate();
+  const [content, setContent] = useState("");
+  const [imageData, setImageData] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
+
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm();
-  const [content, setContent] = useState("");
-  const [imageUrl, setImageUrl] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const editor = useRef(null);
 
-  const onSubmit = async (data) => {
-    if (!imageUrl) {
-      toast.error("Please upload an image first.");
-      return;
-    }
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    const payload = { ...data, content, image: imageUrl };
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "react_unsigned");
 
+    setUploading(true);
     try {
-      setLoading(true);
+      const res = await fetch("https://api.cloudinary.com/v1_1/dwelnewv8/image/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      setImageData({ url: data.secure_url, public_id: data.public_id });
+      toast.success("Image uploaded!");
+    } catch (err) {
+      toast.error("Image upload failed!");
+      console.error(err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onSubmit = async (formData) => {
+    const payload = {
+      ...formData,
+      content,
+      image: imageData?.url || null,
+      image_public_id: imageData?.public_id || null,
+    };
+
+    setLoading(true);
+    try {
       const res = await fetch(apiurl + "blogs", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-type": "application/json",
+          Accept: "application/json",
           Authorization: `Bearer ${token()}`,
         },
         body: JSON.stringify(payload),
@@ -40,132 +69,151 @@ export default function CreateBlog() {
       const result = await res.json();
       if (result.status) {
         toast.success("Blog created successfully!");
+        reset();
+        setContent("");
+        setImageData(null);
         navigate("/admin/blogs");
       } else {
-        toast.error(result.message);
+        toast.error(result.message || "Failed to create blog");
       }
-    } catch (err) {
-      toast.error("Something went wrong.");
+    } catch (error) {
+      toast.error("Something went wrong!");
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFile = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", "react_unsigned"); // Replace with your Cloudinary upload preset
-    formData.append("cloud_name", "dwelnewv8"); // Replace with your Cloudinary cloud name
-
-    try {
-      const res = await fetch("https://api.cloudinary.com/v1_1/dwelnewv8/image/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await res.json();
-      if (result.secure_url) {
-        setImageUrl(result.secure_url);
-        toast.success("Image uploaded successfully!");
-      } else {
-        toast.error("Image upload failed");
-      }
-    } catch (error) {
-      toast.error("Image upload error");
-    }
-  };
-
   return (
     <main className="p-5">
-      <div className="flex gap-6">
-        <div className="w-64">
-          <Sidebar />
-        </div>
+      <div className="flex gap-6"></div>
+      <div className="min-h-screen flex bg-gray-100">
+        <Sidebar />
 
-        <div className="flex-grow bg-white shadow rounded-lg p-6 min-h-[450px]">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-2xl font-semibold text-gray-800">Create Blog</h4>
-            <Link to="/admin/blogs">
-              <button className="bg-purple-500 hover:bg-purple-600 px-4 py-2 !rounded-lg text-white transition duration-200">
-                Back
-              </button>
-            </Link>
-          </div>
-          <hr className="mb-4 border-gray-300" />
-          <form onSubmit={handleSubmit(onSubmit)} className="p-6 bg-white rounded shadow">
-            <h2 className="text-xl font-bold mb-4">Create Blog</h2>
-
-            <div className="mb-3">
-              <label>Title</label>
-              <input
-                className="form-control"
-                {...register("title", { required: "Title is required" })}
-              />
-              {errors.title && <p className="text-red-500">{errors.title.message}</p>}
+        <div className="flex-grow">
+          <div className="max-w-full mx-auto bg-white p-10 rounded-2xl shadow-sm space-y-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-2xl font-semibold text-gray-800">Create Blog</h4>
+              <Link to="/admin/blogs">
+                <button className="bg-purple-500 hover:bg-purple-600 px-4 py-2 !rounded-lg text-white transition duration-200">
+                  Back
+                </button>
+              </Link>
             </div>
 
-            <div className="mb-3">
-              <label>Slug</label>
-              <input
-                className="form-control"
-                {...register("slug", { required: "Slug is required" })}
-              />
-            </div>
+            <hr />
 
-            <div className="mb-3">
-              <label>Short Description</label>
-              <textarea
-                className="form-control"
-                {...register("short_desc", { required: "Description is required" })}
-              />
-            </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {[
+                  ["title", "Title"],
+                  ["slug", "Slug"],
+                  ["short_desc", "Short Description"]
+                ].map(([key, label]) => (
+                  <div key={key}>
+                    <label htmlFor={key} className="block text-sm font-medium text-gray-700 mb-1">
+                      {label}
+                    </label>
+                    <input
+                      type="text"
+                      {...register(key, { required: true })}
+                      placeholder={label}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {errors[key] && (
+                      <span className="text-red-500 text-sm">{label} is required</span>
+                    )}
+                  </div>
+                ))}
 
-            <div className="mb-3">
-              <label>Content</label>
-              <JoditEditor
-                ref={editor}
-                value={content}
-                onBlur={(newContent) => setContent(newContent)}
-              />
-            </div>
+                <div>
+                  <label className="block font-medium mb-1">Status</label>
+                  <select
+                    {...register("status", { required: true })}
+                    className="w-full border p-2 rounded border-gray-300"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Select status</option>
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                  </select>
+                  {errors.status && (
+                    <span className="text-red-500 text-sm">Status is required</span>
+                  )}
+                </div>
 
-            <div className="mb-3">
-              <label>Image</label>
-              <input type="file" className="form-control" onChange={handleFile} />
-              {imageUrl && <img src={imageUrl} alt="Preview" className="mt-2 w-32 h-20 object-cover rounded" />}
-            </div>
-
-            <div className="mb-3">
-              <label>Status</label>
-              <select className="form-control" {...register("status")}>
-                <option value="1">Active</option>
-                <option value="0">Blocked</option>
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary flex items-center gap-2"
-              disabled={loading}
-            >
-              {loading && (
-                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" />
-                  <path
-                    className="opacity-75"
-                    fill="white"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Upload Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-blue-600 file:text-white file:rounded-lg hover:file:bg-blue-700"
                   />
-                </svg>
-              )}
-              {loading ? "Creating..." : "Create Blog"}
-            </button>
-          </form>
+                  {uploading && (
+                    <p className="text-sm text-blue-500 mt-2">Uploading...</p>
+                  )}
+                  {imageData?.url && (
+                    <img
+                      src={imageData.url}
+                      alt="Uploaded"
+                      className="w-40 h-40 mt-4 object-cover rounded-lg border"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Jodit Content Editor */}
+              <div>
+                <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
+                  Content
+                </label>
+                <JoditEditor value={content} onChange={(newContent) => setContent(newContent)} />
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full flex justify-center items-center gap-2 bg-purple-500 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-md transition ${
+                  loading ? "opacity-70 cursor-not-allowed" : ""
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
+                    </svg>
+                    Creating...
+                  </>
+                ) : (
+                  "Submit Blog"
+                )}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </main>
   );
-}
+};
+
+export default CreateBlog;
